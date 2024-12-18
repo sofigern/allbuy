@@ -1,3 +1,4 @@
+aiohttp
 dacite
 google-auth
 google-cloud-run 
