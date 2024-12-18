@@ -1,0 +1,7 @@
+dacite
+google-auth
+google-cloud-run 
+google-cloud-secret-manager
+python-dotenv 
+requests
+ujson

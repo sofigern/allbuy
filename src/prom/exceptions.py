@@ -1,0 +1,3 @@
+class OutdatedCookiesError(Exception):
+    pass
+
