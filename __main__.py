@@ -1,3 +1,5 @@
+from aiohttp import web
+
 import argparse
 import asyncio
 import logging
@@ -75,6 +77,7 @@ def parse_arguments():
     # Convert to a dictionary
     return args
 
+
 async def main():
     parsed_data = parse_arguments()
     _, project_id = google.auth.default()
@@ -106,7 +109,7 @@ async def main():
         messenger=signal_bot,
         cookies=get_cookies(),
     )
-    logger.info("Starting AllBuyBot %s", vars())
+
     refresh_is_possible = True    
 
     while True:
@@ -125,7 +128,25 @@ async def main():
 
         await asyncio.sleep(60)
 
+async def start():
+    # Create the web application
+    app = web.Application()
+    # app.router.add_get('/', handle)  # Define a route
+
+    # Start the server on all interfaces (0.0.0.0) and port 8080
+    runner = web.AppRunner(app)
+    await runner.setup()
+
+    site = web.TCPSite(runner, '0.0.0.0', int(os.getenv("PORT", 8080)))
+    await site.start()
+    
+    print(f"Server started at http://0.0.0.0:{os.getenv('PORT', 8080)}")
+
+    # Run the main logic in the same event loop
+    await main()
+
 if __name__ == "__main__":
+
     params = {}
     if not os.path.exists("local.env"):
         secret_client = secretmanager_v1.SecretManagerServiceClient()
@@ -137,4 +158,5 @@ if __name__ == "__main__":
         load_dotenv(stream=io.StringIO(payload))
     else:
         load_dotenv("local.env")
-    asyncio.run(main())    
+    
+    asyncio.run(start())
