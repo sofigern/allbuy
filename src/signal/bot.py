@@ -12,7 +12,7 @@ class SignalBot:
         self.phone_number = phone_number
         self.group_id = group_id
 
-    async def send(self, message: str, debug: bool = True):
+    async def send(self, message: str, debug: bool = False):
         recepient = self.group_id
         if debug:
             message = (
@@ -23,7 +23,15 @@ class SignalBot:
                 f"{message}"
             )
             recepient = self.phone_number
-           
+
+        message = (
+            "------------------------------" + "\n"
+            "Це повідомлення відправлено в тестовому режимі." + "\n"
+            "Ніяких справжніх дій не відбувається." + "\n"
+            "------------------------------" + "\n"
+            f"{message}"
+        )
+   
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"https://{self.service}/v2/send",
