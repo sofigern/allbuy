@@ -50,6 +50,8 @@ class AllBuyBot:
                     }
                 )
             )
+            if order.id in self.processed_orders:
+                continue
 
             try:
                 order = await self.refresh_order(order)
