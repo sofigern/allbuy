@@ -3,6 +3,7 @@ dacite
 google-auth
 google-cloud-run 
 google-cloud-secret-manager
+google-cloud-firestore
 python-dotenv 
 requests
 ujson

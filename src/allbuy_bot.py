@@ -26,6 +26,7 @@ class AllBuyBot:
         client: PromAPIClient,
         messenger: SignalBot | None = None,
         cookies: str | None = None,
+        processed_orders: dict | None = None,
     ):
         self.client = client
         self.orders = []
@@ -36,6 +37,7 @@ class AllBuyBot:
             messenger=self.messenger,
             cookies=cookies,
         )
+        self.processed_orders = processed_orders or dict()
 
     async def refresh_shop(self):
         logger.info("Refreshing shop data")
@@ -50,37 +52,29 @@ class AllBuyBot:
                     }
                 )
             )
-            if order.id in self.processed_orders:
+            if str(order.id) in self.processed_orders:
                 continue
 
             try:
                 order = await self.refresh_order(order)
             except e.NotAllowedOrderStatusError as exc:
-                if order.id not in self.processed_orders:
-                    self.processed_orders.add(order.id)
-                    logger.info("Sending message to the chat:\n%s", exc)
-                    if self.messenger:
-                        await self.messenger.send(str(exc))
+                logger.info("Sending message to the chat:\n%s", exc)
+                if self.messenger:
+                    await self.messenger.send(str(exc))
             except e.DeliveryProviderNotAllowedError as exc:
-                if order.id not in self.processed_orders:
-                    self.processed_orders.add(order.id)
-                    logger.info("Sending message to the chat:\n%s", exc)
-                    if self.messenger:
-                        await self.messenger.send(str(exc))
+                logger.info("Sending message to the chat:\n%s", exc)
+                if self.messenger:
+                    await self.messenger.send(str(exc))
             except e.PaymentOptionDisabledError as exc:
-                if order.id not in self.processed_orders:
-                    self.processed_orders.add(order.id)
-                    logger.info("Sending message to the chat:\n%s", exc)
-                    if self.messenger:
-                        await self.messenger.send(str(exc))
+                logger.info("Sending message to the chat:\n%s", exc)
+                if self.messenger:
+                    await self.messenger.send(str(exc))
             except e.ModifiedDateIsTooOldError as exc:
-                if order.id not in self.processed_orders:
-                    self.processed_orders.add(order.id)
-                    logger.info("Sending message to the chat:\n%s", exc)
-                    if self.messenger:
-                        await self.messenger.send(str(exc))
-            else:
-                self.processed_orders.add(order.id)
+                logger.info("Sending message to the chat:\n%s", exc)
+                if self.messenger:
+                    await self.messenger.send(str(exc))
+            finally:
+                self.processed_orders[str(order.id)] = {"ts": datetime.datetime.now().timestamp()}
 
     async def refresh_order(self, order: Order) -> Order:
         if (

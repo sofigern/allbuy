@@ -11,7 +11,7 @@ import urllib
 from dotenv import load_dotenv 
 
 import google.auth
-from google.cloud import run_v2, secretmanager_v1
+from google.cloud import run_v2, secretmanager_v1, firestore
 
 from src.signal.bot import SignalBot
 from src.prom.client import PromAPIClient
@@ -104,43 +104,55 @@ async def main():
     prom_client = PromAPIClient(
         parsed_data.prom_token,
     )
+
+    db = firestore.Client(database="all-buy-firestore")
+    processed_orders = {
+        doc.id: doc.to_dict()
+        for doc in db.collection("processed_orders").stream()
+        if doc
+    }
+
     allbuy_bot = AllBuyBot(
         client=prom_client,
         messenger=signal_bot,
         cookies=get_cookies(),
+        processed_orders=processed_orders,
     )
 
-    refresh_is_possible = True    
+    # refresh_is_possible = True    
 
-    while True:
+    # while True:
         
-        if refresh_is_possible:
-            try:
-                await allbuy_bot.refresh_shop()
-            except OutdatedCookiesError:
-                refresh_is_possible = False
-                await signal_bot.send(
-                    "Авторизаційні дані застаріли. Потрібно оновити Cookies.",
-                    "Наразі опрацювання нових замовлень неможливе."
-                )
-        else:
-            logger.warning("Outdated cookies. Refresh is not possible.")
+        # if refresh_is_possible:
+    try:
+        await allbuy_bot.refresh_shop()
+    except OutdatedCookiesError:
+        # refresh_is_possible = False
+        await signal_bot.send(
+            "Авторизаційні дані застаріли. Потрібно оновити Cookies.",
+            "Наразі опрацювання нових замовлень неможливе."
+        )
+        # else:
+        #     logger.warning("Outdated cookies. Refresh is not possible.")
 
-        await asyncio.sleep(60)
+        # await asyncio.sleep(60)
+    else:
+        for order, ts in allbuy_bot.processed_orders.items():
+            db.collection("processed_orders").document(order).set(ts)
 
 async def start():
     # Create the web application
-    app = web.Application()
+    # app = web.Application()
     # app.router.add_get('/', handle)  # Define a route
 
     # Start the server on all interfaces (0.0.0.0) and port 8080
-    runner = web.AppRunner(app)
-    await runner.setup()
+    # runner = web.AppRunner(app)
+    # await runner.setup()
 
-    site = web.TCPSite(runner, '0.0.0.0', int(os.getenv("PORT", 8080)))
-    await site.start()
+    # site = web.TCPSite(runner, '0.0.0.0', int(os.getenv("PORT", 8080)))
+    # await site.start()
     
-    print(f"Server started at http://0.0.0.0:{os.getenv('PORT', 8080)}")
+    # print(f"Server started at http://0.0.0.0:{os.getenv('PORT', 8080)}")
 
     # Run the main logic in the same event loop
     await main()
