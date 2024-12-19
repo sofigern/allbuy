@@ -54,7 +54,7 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 "city_name": init_data_order["cityName"],
                 "service_type": init_data_order["serviceType"],
                 "np_payer_type": init_data_order["payerType"],
-                "cargo_type": init_data_order["cargoType"],
+                "cargo_type": init_data_order.get("cargoType", "Cargo"),
                 "from_first_name": init_data_order["firstName"],
                 "from_last_name": init_data_order["lastName"],
                 "from_second_name": "",
