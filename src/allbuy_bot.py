@@ -160,6 +160,7 @@ class AllBuyBot:
         try:
             order = await manager.process_order(order)
         except GeneratingDeclarationException as exc:
+            logger.exception("Error while generating declaration for order")
             raise e.GenerationDeclarationError(order) from exc
 
         return order

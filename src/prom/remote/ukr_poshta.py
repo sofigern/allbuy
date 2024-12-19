@@ -13,8 +13,14 @@ class UkrPoshtaScraperClient(BaseScraperClient):
     async def generate_declaration(self, order: Order) -> dict:
         logger.info("Generating declaration for order %s", order)
         scraped_auth = await self.get_auth()
+        scraped_order = await self.get_order(order)
         init_data_order = await self._init_data_order(order)
-        delivery_info = await self._delivery_info(order, scraped_auth, init_data_order)
+        delivery_info = await self._delivery_info(
+            order, 
+            scraped_auth, 
+            scraped_order, 
+            init_data_order,
+        )
         return delivery_info
 
     async def _init_data_order(
@@ -38,12 +44,15 @@ class UkrPoshtaScraperClient(BaseScraperClient):
         self,
         order: Order,
         scraped_auth: dict,
+        scraped_order: dict,
         init_data_order: dict,
     ):
+        default_price = scraped_order["cartTotalPriceInDefaultCurrency"]
+
         request = {
             "order_id": order.id,
             "delivery_option_id": str(order.delivery_option.id),
-            "cart_total_price": init_data_order["cod_amount"],
+            "cart_total_price": init_data_order.get("cod_amount", default_price),
         }
 
         async with self.client.post(
