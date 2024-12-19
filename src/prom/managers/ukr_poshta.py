@@ -23,6 +23,7 @@ class UkrPoshtaManager(DummyManager):
         delivery = None
         delivery_info = await self.scrape_client.generate_declaration(order)
         delivery = Delivery.from_up_kwargs(**delivery_info)
-        order = await self.receive_order(order)
+        if order.status == OrderStatuses.PENDING.value:
+            order = await self.receive_order(order)
         await self.notify(order, delivery)
         return order

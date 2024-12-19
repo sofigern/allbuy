@@ -23,6 +23,7 @@ class NovaPoshtaManager(DummyManager):
         delivery = None
         delivery_info = await self.scrape_client.generate_declaration(order)
         delivery = Delivery.from_np_kwargs(**delivery_info["fields"])
-        order = await self.receive_order(order)
+        if order.status == OrderStatuses.PENDING.value:
+            order = await self.receive_order(order)
         await self.notify(order, delivery)
         return order
