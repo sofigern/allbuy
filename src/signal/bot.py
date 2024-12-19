@@ -39,7 +39,7 @@ class SignalBot:
                     "message": message,
                     "number": self.phone_number,
                     # "recipients": [recepient],
-                    "recipients": [self.phone_number],
+                    "recipients": [recepient],
                     "notify_self": False,
                 }
             ) as resp:
