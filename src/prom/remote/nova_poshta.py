@@ -80,8 +80,8 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 "cargo_type": init_data_order.get("cargoType", "Cargo"),
 
                 "order_cost": init_data_order.get("packageCost", default_price),
-                "cod_amount": init_data_order.get("cod_amount", default_price),
-                "cod_payer_type": init_data_order.get("cod_payer_type", default_payer),
+                "cod_amount": init_data_order.get("cod_amount", str(default_price)),
+                "cod_payer_type": init_data_order.get("cod_payer_type", default_payer.lower()),
 
                 "send_date": init_data_order.get("sendDate", init_data_order["dateModified"]),
             }
