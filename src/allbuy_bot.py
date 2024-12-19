@@ -19,16 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 class AllBuyBot:
-    
-    ALLOWED_STATUSES = [OrderStatuses.PENDING.value]
-    DISABLED_PAYMENT_OPTIONS = [PaymentOptions.PROM.value, PaymentOptions.PARTS.value]
 
     def __init__(
         self, 
         client: PromAPIClient,
         messenger: SignalBot | None = None,
         cookies: str | None = None,
-        processed_orders: dict | None = None,
+        paid_orders: dict | None = None,
+        pending_orders: dict | None = None,
     ):
         self.client = client
         self.orders = []
@@ -39,13 +37,16 @@ class AllBuyBot:
             messenger=self.messenger,
             cookies=cookies,
         )
-        self.processed_orders = processed_orders or dict()
+        self.paid_orders = paid_orders or dict()
+        self.pending_orders = pending_orders or dict()
 
     async def refresh_shop(self):
         logger.info("Refreshing shop data")
-        self.orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
-        observed_orders = {}
-        for order_data in self.orders:
+        self.paid_orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
+        self.pending_orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
+
+        processed_paid_orders = {}
+        for order_data in self.paid_orders:
             order: Order = dacite.from_dict(
                 Order, order_data,
                 config=dacite.Config(
@@ -54,34 +55,53 @@ class AllBuyBot:
                     }
                 )
             )
-
-            observed_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
-            if str(order.id) in self.processed_orders:
-                observed_orders[str(order.id)]["ts"] = self.processed_orders[str(order.id)]["ts"]
+            processed_paid_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
+            if str(order.id) in self.paid_orders:
+                processed_paid_orders[str(order.id)]["ts"] = self.paid_orders[str(order.id)]["ts"]
                 continue
+            
+            order = await self.safe_refresh_order(order)
+            processed_paid_orders[str(order.id)]["ts"] = datetime.datetime.now().timestamp()
+        
+        self.paid_orders = processed_paid_orders
 
-            try:
-                order = await self.refresh_order(order)
-            except e.NotAllowedOrderStatusError as exc:
-                logger.info("Sending message to the chat:\n%s", exc)
-                if self.messenger:
-                    await self.messenger.send(str(exc))
-            except e.DeliveryProviderNotAllowedError as exc:
-                logger.info("Sending message to the chat:\n%s", exc)
-                if self.messenger:
-                    await self.messenger.send(str(exc))
-            except e.PaymentOptionDisabledError as exc:
-                logger.info("Sending message to the chat:\n%s", exc)
-                if self.messenger:
-                    await self.messenger.send(str(exc))
-            except e.ModifiedDateIsTooOldError as exc:
-                logger.info("Sending message to the chat:\n%s", exc)
-                if self.messenger:
-                    await self.messenger.send(str(exc))
-            finally:
-                observed_orders[str(order.id)]["ts"] = datetime.datetime.now().timestamp()
-        self.processed_orders = observed_orders
+        processed_pending_orders = {}
+        for order_data in self.pending_orders:
+            order: Order = dacite.from_dict(
+                Order, order_data,
+                config=dacite.Config(
+                    type_hooks={
+                        OrderStatus: lambda s: OrderStatuses.get(s).value,
+                    }
+                )
+            )
+            processed_pending_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
+            if str(order.id) in self.pending_orders:
+                processed_pending_orders[str(order.id)]["ts"] = self.pending_orders[str(order.id)]["ts"]
+                continue
+            
+            order = await self.safe_refresh_order(order)
+            processed_pending_orders[str(order.id)]["ts"] = datetime.datetime.now().timestamp()
+        self.pending_orders = processed_pending_orders
+    
+    async def safe_refresh_order(self, order: Order):
+        try:
+            order = await self.refresh_order(order)
+        except (
+            e.NotAllowedOrderStatusError,
+            e.DeliveryProviderNotAllowedError,
+            e.PaymentOptionDisabledError,
+            e.IncompletePaymentError,
+            e.ReadyForDeliveryError,
+        ) as exc:
+            logger.info("Sending message to the chat:\n%s", exc)
+            if self.messenger:
+                await self.messenger.send(str(exc))
+        except e.ModifiedDateIsTooOldError as exc:
+            logger.info("Ignoring too old orders:\n%s", exc)
 
+        return order
+       
     async def refresh_order(self, order: Order) -> Order:
         if (
             datetime.datetime.now() - 
@@ -89,11 +109,19 @@ class AllBuyBot:
         ) > datetime.timedelta(days=7):
             raise e.ModifiedDateIsTooOldError(order)
         
-        if order.status not in self.ALLOWED_STATUSES:
-            raise e.NotAllowedOrderStatusError(order)
-        
-        if order.payment_option in self.DISABLED_PAYMENT_OPTIONS:
-            raise e.PaymentOptionDisabledError(order,)
+        if (
+            order.status == OrderStatuses.PENDING.value and
+            (
+                order.payment_option == PaymentOptions.PROM.value or
+                order.payment_option == PaymentOptions.PARTS.value
+            )
+        ):
+            raise e.IncompletePaymentError(order)
+
+        if order.status == OrderStatuses.PAID.value:
+            if (data := order.delivery_provider_data):
+                if data.declaration_number:
+                    raise e.ReadyForDeliveryError(order)
 
         logger.info(f"Refreshing order %s", order)
 

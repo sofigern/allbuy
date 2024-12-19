@@ -25,20 +25,21 @@ class SignalBot:
             recepient = self.phone_number
 
         message = (
-            "------------------------------" + "\n"
-            "Це повідомлення відправлено в тестовому режимі." + "\n"
-            "Ніяких справжніх дій не відбувається." + "\n"
-            "------------------------------" + "\n"
-            f"{message}"
-        )
-   
+                "------------------------------" + "\n"
+                "Це повідомлення відправлено в тестовому режимі." + "\n"
+                "Ніяких справжніх дій не відбувається." + "\n"
+                "------------------------------" + "\n"
+                f"{message}"
+            )
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"https://{self.service}/v2/send",
                 json={
                     "message": message,
                     "number": self.phone_number,
-                    "recipients": [recepient],
+                    # "recipients": [recepient],
+                    "recipients": [self.phone_number],
                     "notify_self": False,
                 }
             ) as resp:

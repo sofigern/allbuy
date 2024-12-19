@@ -35,6 +35,7 @@ class DummyManager(IManager):
                 f"Замовлення {order} було успішно оброблено" + "\n"
                 "------------------------------" + "\n"
                 f"Cтатус замовлення: {order.status}" + "\n"
+                f"Спосіб оплати: {order.payment_option}" + "\n"
                 f"Доставка ({order.delivery_option}): {order.delivery_address}" + "\n"
                 f"{delivery_str}"
                 "------------------------------" + "\n"
@@ -48,6 +49,7 @@ class DummyManager(IManager):
 
     async def process_order(self, order: Order) -> Order:
         logger.info("%s is processing order %s", self.__class__, order)
-        order = await self.receive_order(order)
+        if order.status == OrderStatuses.PENDING.value:
+            order = await self.receive_order(order)
         await self.notify(order)
         return order

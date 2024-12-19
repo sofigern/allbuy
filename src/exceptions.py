@@ -37,3 +37,11 @@ class PaymentOptionDisabledError(NotAllowedOrderError):
 
 class ModifiedDateIsTooOldError(NotAllowedOrderError):
     reason = "Дата оновлення замовлення занадто стара"
+
+
+class IncompletePaymentError(NotAllowedOrderError):
+    reason = "Замовлення очікує оплати і буде опрацьовано після її отримання"
+
+
+class ReadyForDeliveryError(NotAllowedOrderError):
+    reason = "Замовлення вже готове до відправлення"

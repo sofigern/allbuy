@@ -1,5 +1,3 @@
-from aiohttp import web
-
 import argparse
 import asyncio
 import logging
@@ -71,6 +69,12 @@ def parse_arguments():
         default=os.getenv("PROM_TOKEN")
     )
 
+    parser.add_argument(
+        "--signal-disallowed", help="Signal disallowed phone number",
+        action="store_true"
+    )
+
+
     # Parse the arguments
     args = parser.parse_args()
 
@@ -91,24 +95,33 @@ async def main():
     )
     service_url = service.urls[0]
     signal_service = urllib.parse.urlparse(service_url).netloc
+    
+    signal_bot = None
+    if not parsed_data.signal_disallowed:
+        if not parsed_data.signal_phone or not parsed_data.signal_group:
+            raise ValueError("Signal Phone number and group ID are required.")
 
-    if not parsed_data.signal_phone or not parsed_data.signal_group:
-        raise ValueError("Signal Phone number and group ID are required.")
-
-    signal_bot = SignalBot(**{
-        "signal_service": signal_service,
-        "phone_number": parsed_data.signal_phone,
-        "group_id": parsed_data.signal_group,
-    })
+        signal_bot = SignalBot(**{
+            "signal_service": signal_service,
+            "phone_number": parsed_data.signal_phone,
+            "group_id": parsed_data.signal_group,
+        })
 
     prom_client = PromAPIClient(
         parsed_data.prom_token,
     )
 
     db = firestore.Client(database="all-buy-firestore")
-    processed_orders = {
+
+    paid_orders = {
         doc.id: doc.to_dict()
-        for doc in db.collection("processed_orders").stream()
+        for doc in db.collection("paid_orders").stream()
+        if doc
+    }
+
+    pending_orders = {
+        doc.id: doc.to_dict()
+        for doc in db.collection("pending_orders").stream()
         if doc
     }
 
@@ -116,51 +129,35 @@ async def main():
         client=prom_client,
         messenger=signal_bot,
         cookies=get_cookies(),
-        processed_orders=processed_orders,
+        paid_orders=paid_orders,
+        pending_orders=pending_orders
     )
 
-    # refresh_is_possible = True    
-
-    # while True:
-        
-        # if refresh_is_possible:
     try:
         await allbuy_bot.refresh_shop()
     except OutdatedCookiesError:
-        # refresh_is_possible = False
-        await signal_bot.send(
-            "Авторизаційні дані застаріли. Потрібно оновити Cookies.",
-            "Наразі опрацювання нових замовлень неможливе."
-        )
-        # else:
-        #     logger.warning("Outdated cookies. Refresh is not possible.")
-
-        # await asyncio.sleep(60)
+        if signal_bot:
+            await signal_bot.send(
+                "Авторизаційні дані застаріли. Потрібно оновити Cookies.",
+                "Наразі опрацювання нових замовлень неможливе."
+            )
     else:
-        for doc in db.collection("processed_orders").stream():
-            if doc.id not in allbuy_bot.processed_orders:
+        for doc in db.collection("paid_orders").stream():
+            if doc.id not in allbuy_bot.paid_orders:
                 logger.info("%s was processed and removed from the database", doc.id)
                 doc.reference.delete()
-            db.collection("processed_orders").document(doc.id).delete()
-        for order, data in allbuy_bot.processed_orders.items():
-            db.collection("processed_orders").document(order).set(data)
 
-async def start():
-    # Create the web application
-    # app = web.Application()
-    # app.router.add_get('/', handle)  # Define a route
+        for order, data in allbuy_bot.paid_orders.items():
+            db.collection("paid_orders").document(order).set(data)
+        
+        for doc in db.collection("pending_orders").stream():
+            if doc.id not in allbuy_bot.pending_orders:
+                logger.info("%s was processed and removed from the database", doc.id)
+                doc.reference.delete()
 
-    # Start the server on all interfaces (0.0.0.0) and port 8080
-    # runner = web.AppRunner(app)
-    # await runner.setup()
+        for order, data in allbuy_bot.pending_orders.items():
+            db.collection("pending_orders").document(order).set(data)
 
-    # site = web.TCPSite(runner, '0.0.0.0', int(os.getenv("PORT", 8080)))
-    # await site.start()
-    
-    # print(f"Server started at http://0.0.0.0:{os.getenv('PORT', 8080)}")
-
-    # Run the main logic in the same event loop
-    await main()
 
 if __name__ == "__main__":
 
@@ -176,4 +173,4 @@ if __name__ == "__main__":
     else:
         load_dotenv("local.env")
     
-    asyncio.run(start())
+    asyncio.run(main())

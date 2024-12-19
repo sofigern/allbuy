@@ -26,3 +26,8 @@ class PaymentOptions(Enum):
         name="Оплатить частями",
         description="",
     )
+    CASH_ON_DELIVERY = PaymentOption(
+        id=8768054,
+        name="Наложенный платеж",
+        description="",
+    )

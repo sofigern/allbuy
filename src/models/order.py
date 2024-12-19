@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from src.models.client import Client
 from src.models.delivery_provider import DeliveryProvider
+from src.models.delivery_provider_data import DeliveryProviderData
 from src.models.order_status import OrderStatus
 from src.models.payment_option import PaymentOption
 
@@ -18,6 +19,7 @@ class Order:
     delivery_option: DeliveryProvider
     payment_option: PaymentOption
     client: Client
+    delivery_provider_data: DeliveryProviderData | None = None
     phone: str = field(repr=False, default="")
 
     def __post_init__(self, **kwargs):
