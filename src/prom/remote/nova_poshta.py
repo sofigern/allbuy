@@ -74,7 +74,7 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 "is_redelivery_set": init_data_order["isRedelivery"],
                 "redelivery_amount": init_data_order.get("redeliveryAmount", default_price),
                 "redelivery_payment_type": "cash",
-                "redelivery_payer_type": init_data_order("redeliveryPayerType", default_payer),
+                "redelivery_payer_type": init_data_order.get("redeliveryPayerType", default_payer),
 
                 "document_weight": init_data_order.get("documentWeight", "0.1"),
                 "cargo_type": init_data_order.get("cargoType", "Cargo"),
