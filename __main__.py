@@ -74,6 +74,10 @@ def parse_arguments():
         action="store_true"
     )
 
+    parser.add_argument(
+        "--order-id", help="Order ID",
+        action="append"
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -134,7 +138,7 @@ async def main():
     )
 
     try:
-        await allbuy_bot.refresh_shop()
+        await allbuy_bot.refresh_shop(orders=parsed_data.order_id)
     except OutdatedCookiesError:
         if signal_bot:
             await signal_bot.send(
@@ -142,21 +146,22 @@ async def main():
                 "Наразі опрацювання нових замовлень неможливе."
             )
     else:
-        for doc in db.collection("paid_orders").stream():
-            if doc.id not in allbuy_bot.paid_orders:
-                logger.info("%s was processed and removed from the database", doc.id)
-                doc.reference.delete()
+        if not parsed_data.order_id:
+            for doc in db.collection("paid_orders").stream():
+                if doc.id not in allbuy_bot.paid_orders:
+                    logger.info("%s was processed and removed from the database", doc.id)
+                    doc.reference.delete()
 
-        for order, data in allbuy_bot.paid_orders.items():
-            db.collection("paid_orders").document(order).set(data)
-        
-        for doc in db.collection("pending_orders").stream():
-            if doc.id not in allbuy_bot.pending_orders:
-                logger.info("%s was processed and removed from the database", doc.id)
-                doc.reference.delete()
+            for order, data in allbuy_bot.paid_orders.items():
+                db.collection("paid_orders").document(order).set(data)
+            
+            for doc in db.collection("pending_orders").stream():
+                if doc.id not in allbuy_bot.pending_orders:
+                    logger.info("%s was processed and removed from the database", doc.id)
+                    doc.reference.delete()
 
-        for order, data in allbuy_bot.pending_orders.items():
-            db.collection("pending_orders").document(order).set(data)
+            for order, data in allbuy_bot.pending_orders.items():
+                db.collection("pending_orders").document(order).set(data)
 
 
 if __name__ == "__main__":

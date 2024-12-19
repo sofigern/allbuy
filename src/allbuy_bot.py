@@ -11,6 +11,7 @@ from src.models.order_status import OrderStatus, OrderStatuses
 from src.models.payment_option import PaymentOptions
 
 from src.prom.client import PromAPIClient
+from src.prom.exceptions import GeneratingDeclarationException
 from src.prom.managers.director import Director
 from src.signal.bot import SignalBot
 
@@ -40,12 +41,16 @@ class AllBuyBot:
         self.paid_orders = paid_orders or dict()
         self.pending_orders = pending_orders or dict()
 
-    async def refresh_shop(self):
+    async def refresh_shop(self, orders: list[str]):
         logger.info("Refreshing shop data")
+        input_orders = orders or []
 
         orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
         processed_paid_orders = {}
         for order_data in orders:
+            if input_orders and str(order_data["id"]) not in input_orders:
+                continue
+
             order: Order = dacite.from_dict(
                 Order, order_data,
                 config=dacite.Config(
@@ -55,7 +60,10 @@ class AllBuyBot:
                 )
             )
             processed_paid_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
-            if str(order.id) in self.paid_orders:
+            if (
+                str(order.id) not in input_orders and
+                str(order.id) in self.paid_orders
+            ):
                 processed_paid_orders[str(order.id)]["ts"] = self.paid_orders[str(order.id)]["ts"]
                 continue
             
@@ -66,7 +74,10 @@ class AllBuyBot:
 
         processed_pending_orders = {}
         orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
+
         for order_data in orders:
+            if input_orders and str(order_data["id"]) not in input_orders:
+                continue
             order: Order = dacite.from_dict(
                 Order, order_data,
                 config=dacite.Config(
@@ -76,7 +87,10 @@ class AllBuyBot:
                 )
             )
             processed_pending_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
-            if str(order.id) in self.pending_orders:
+            if (
+                str(order.id) not in input_orders and
+                str(order.id) in self.pending_orders
+            ):
                 processed_pending_orders[str(order.id)]["ts"] = self.pending_orders[str(order.id)]["ts"]
                 continue
             
@@ -93,6 +107,7 @@ class AllBuyBot:
             e.PaymentOptionDisabledError,
             e.IncompletePaymentError,
             e.ReadyForDeliveryError,
+            e.GenerationDeclarationError,
         ) as exc:
             logger.info("Sending message to the chat:\n%s", exc)
             if self.messenger:
@@ -126,5 +141,9 @@ class AllBuyBot:
         logger.info(f"Refreshing order %s", order)
 
         manager = self.director.assign(order)
-        order = await manager.process_order(order)
+        try:
+            order = await manager.process_order(order)
+        except GeneratingDeclarationException as exc:
+            raise e.GenerationDeclarationError(order) from exc
+
         return order

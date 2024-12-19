@@ -20,6 +20,7 @@ class UkrPoshtaManager(DummyManager):
             order.payment_option != PaymentOptions.CASH_ON_DELIVERY.value
         ):
             raise PaymentOptionDisabledError(order)
+        delivery = None
         delivery_info = await self.scrape_client.generate_declaration(order)
         delivery = Delivery.from_up_kwargs(**delivery_info)
         order = await self.receive_order(order)

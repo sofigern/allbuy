@@ -45,3 +45,21 @@ class IncompletePaymentError(NotAllowedOrderError):
 
 class ReadyForDeliveryError(NotAllowedOrderError):
     reason = "Замовлення вже готове до відправлення"
+
+
+class GenerationDeclarationError(Exception):
+    def __init__(self, order: Order):
+        self.order = order
+
+    def __str__(self):
+        return (
+            f"Замовлення {self.order}" + "\n"
+            "------------------------------" + "\n"
+            "Помилка створення декларації." + "\n"
+            "Очікуйте наступної спроби aбо обробіть замовлення вручну." + "\n"
+            f"Статус замовлення: {self.order.status}." + "\n"
+            f"Постачальник доставки: {self.order.delivery_option}." + "\n"
+            f"Спосіб оплати: {self.order.payment_option}." + "\n"
+            "------------------------------" + "\n"
+            f"Деталі замовлення: {PromAPIClient.order_url(self.order.id)}"
+        )
