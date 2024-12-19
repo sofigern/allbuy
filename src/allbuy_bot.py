@@ -40,6 +40,7 @@ class AllBuyBot:
         )
         self.paid_orders = paid_orders or dict()
         self.pending_orders = pending_orders or dict()
+        self.retry_orders = set()
 
     async def refresh_shop(self, orders: list[str]):
         logger.info("Refreshing shop data")
@@ -47,6 +48,7 @@ class AllBuyBot:
 
         orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
         processed_paid_orders = {}
+        self.retry_orders = set()
         for order_data in orders:
             if input_orders and str(order_data["id"]) not in input_orders:
                 continue
@@ -68,11 +70,16 @@ class AllBuyBot:
                 continue
             
             order = await self.safe_refresh_order(order)
-            processed_paid_orders[str(order.id)]["ts"] = datetime.datetime.now().timestamp()
+            if o := processed_paid_orders[str(order.id)]:
+                o["ts"] = datetime.datetime.now().timestamp()
         
-        self.paid_orders = processed_paid_orders
+        self.paid_orders = {
+            k: v for k, v in processed_paid_orders.items() 
+            if k not in self.retry_orders
+        }
 
         processed_pending_orders = {}
+        self.retry_orders = set()
         orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
 
         for order_data in orders:
@@ -95,8 +102,13 @@ class AllBuyBot:
                 continue
             
             order = await self.safe_refresh_order(order)
-            processed_pending_orders[str(order.id)]["ts"] = datetime.datetime.now().timestamp()
-        self.pending_orders = processed_pending_orders
+            if o := processed_pending_orders[str(order.id)]:
+                o["ts"] = datetime.datetime.now().timestamp()
+    
+        self.pending_orders = {
+            k: v for k, v in processed_pending_orders.items()
+            if k not in self.retry_orders
+        }
     
     async def safe_refresh_order(self, order: Order):
         try:
@@ -107,8 +119,12 @@ class AllBuyBot:
             e.PaymentOptionDisabledError,
             e.IncompletePaymentError,
             e.ReadyForDeliveryError,
-            e.GenerationDeclarationError,
         ) as exc:
+            logger.info("Sending message to the chat:\n%s", exc)
+            if self.messenger:
+                await self.messenger.send(str(exc))
+        except e.GenerationDeclarationError as exc:
+            self.retry_orders.add(str(order.id))
             logger.info("Sending message to the chat:\n%s", exc)
             if self.messenger:
                 await self.messenger.send(str(exc))
