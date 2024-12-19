@@ -42,11 +42,10 @@ class AllBuyBot:
 
     async def refresh_shop(self):
         logger.info("Refreshing shop data")
-        self.paid_orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
-        self.pending_orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
 
+        orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
         processed_paid_orders = {}
-        for order_data in self.paid_orders:
+        for order_data in orders:
             order: Order = dacite.from_dict(
                 Order, order_data,
                 config=dacite.Config(
@@ -66,7 +65,8 @@ class AllBuyBot:
         self.paid_orders = processed_paid_orders
 
         processed_pending_orders = {}
-        for order_data in self.pending_orders:
+        orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
+        for order_data in orders:
             order: Order = dacite.from_dict(
                 Order, order_data,
                 config=dacite.Config(
