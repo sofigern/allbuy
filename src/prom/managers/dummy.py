@@ -43,7 +43,7 @@ class DummyManager(IManager):
             )
 
     async def receive_order(self, order: Order) -> Order:
-        # await self.api_client.set_order_status(order, OrderStatuses.RECEIVED.value)
+        await self.api_client.set_order_status(order, OrderStatuses.RECEIVED.value)
         order = replace(order, status=OrderStatuses.RECEIVED.value)
         return order
 
