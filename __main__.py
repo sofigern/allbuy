@@ -137,8 +137,13 @@ async def main():
 
         # await asyncio.sleep(60)
     else:
-        for order, ts in allbuy_bot.processed_orders.items():
-            db.collection("processed_orders").document(order).set(ts)
+        for doc in db.collection("processed_orders").stream():
+            if doc.id not in allbuy_bot.processed_orders:
+                logger.info("%s was processed and removed from the database", doc.id)
+                doc.reference.delete()
+            db.collection("processed_orders").document(doc.id).delete()
+        for order, data in allbuy_bot.processed_orders.items():
+            db.collection("processed_orders").document(order).set(data)
 
 async def start():
     # Create the web application

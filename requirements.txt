@@ -1,5 +1,6 @@
 aiohttp
 dacite
+flatdict
 google-auth
 google-cloud-run 
 google-cloud-secret-manager

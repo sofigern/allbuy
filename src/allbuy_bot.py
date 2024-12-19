@@ -1,7 +1,9 @@
 import datetime
 import logging
 
+from dataclasses import asdict
 import dacite
+import flatdict
 
 import src.exceptions as e
 from src.models.order import Order
@@ -42,9 +44,9 @@ class AllBuyBot:
     async def refresh_shop(self):
         logger.info("Refreshing shop data")
         self.orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
-
+        observed_orders = {}
         for order_data in self.orders:
-            order = dacite.from_dict(
+            order: Order = dacite.from_dict(
                 Order, order_data,
                 config=dacite.Config(
                     type_hooks={
@@ -52,7 +54,10 @@ class AllBuyBot:
                     }
                 )
             )
+
+            observed_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
             if str(order.id) in self.processed_orders:
+                observed_orders[str(order.id)]["ts"] = self.processed_orders[str(order.id)]["ts"]
                 continue
 
             try:
@@ -74,7 +79,8 @@ class AllBuyBot:
                 if self.messenger:
                     await self.messenger.send(str(exc))
             finally:
-                self.processed_orders[str(order.id)] = {"ts": datetime.datetime.now().timestamp()}
+                observed_orders[str(order.id)]["ts"] = datetime.datetime.now().timestamp()
+        self.processed_orders = observed_orders
 
     async def refresh_order(self, order: Order) -> Order:
         if (
