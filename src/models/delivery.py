@@ -22,3 +22,11 @@ class Delivery:
             number=kwargs.get("declarationId"),
             cost=kwargs.get("deliveryCost"),
         )
+    
+    @classmethod
+    def from_rz_kwargs(cls, **kwargs):
+        return cls(
+            id=None,
+            number=kwargs.get("declarationId"),
+            cost=kwargs.get("deliveryCost"),
+        )

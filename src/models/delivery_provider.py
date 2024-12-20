@@ -39,3 +39,10 @@ class DeliveryProviders(Enum):
         name="Укрпошта",
         comment=None,
     )
+    ROZETKA = DeliveryProvider(
+        id=15330563,
+        enabled=True,
+        type="rozetka_delivery",
+        name="Магазины Rozetka",
+        comment=None,
+    )
