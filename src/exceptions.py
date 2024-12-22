@@ -11,7 +11,7 @@ class NotAllowedOrderError(Exception):
 
     def __str__(self):
         return (
-            f"Замовлення {self.order}" + "\n"
+            f"Замовлення {self.order.to_text()}"
             "------------------------------" + "\n"
             "Не може бути опрацьовано." + "\n"
             f"Причина: {self.reason}." + "\n"
@@ -53,7 +53,7 @@ class GenerationDeclarationError(Exception):
 
     def __str__(self):
         return (
-            f"Замовлення {self.order}" + "\n"
+            f"Замовлення {self.order.to_text()}"
             "------------------------------" + "\n"
             "Помилка створення декларації." + "\n"
             "Очікуйте наступної спроби aбо обробіть замовлення вручну." + "\n"

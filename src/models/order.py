@@ -19,6 +19,7 @@ class Order:
     delivery_option: DeliveryProvider
     payment_option: PaymentOption
     client: Client
+    client_notes: str
     delivery_provider_data: DeliveryProviderData | None = None
     phone: str = field(repr=False, default="")
 
@@ -41,6 +42,19 @@ class Order:
         return (
             f"{self.id} ({self.datetime_created.date().isoformat()}): {self.price} "
             f"від {self.client}"
+        )
+    
+    def to_text(self):
+        
+        client_notes = ""
+        if self.client_notes:
+            client_notes = (
+                "------------------------------\n"
+                f"Коментар: {self.client_notes}\n"
+            )
+        return (
+            f"{self}\n" +
+            client_notes
         )
     
     def __eq__(self, other):

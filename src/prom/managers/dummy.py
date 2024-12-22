@@ -31,14 +31,19 @@ class DummyManager(IManager):
             if delivery:
                 delivery_str = f"ЕН {delivery.number} Вартість: {delivery.cost or 'Не визначена'}\n"
 
+            client_notes = ""
+            if order.client_notes:
+                client_notes = f"Коментар: {order.client_notes}\n"
+
             await self.messenger.send(
-                f"Замовлення {order} було успішно оброблено" + "\n"
-                "------------------------------" + "\n"
-                f"Cтатус замовлення: {order.status}" + "\n"
-                f"Спосіб оплати: {order.payment_option}" + "\n"
-                f"Доставка ({order.delivery_option}): {order.delivery_address}" + "\n"
-                f"{delivery_str}"
-                "------------------------------" + "\n"
+                f"Замовлення {order} було успішно оброблено" + "\n" +
+                "------------------------------" + "\n" +
+                client_notes +
+                f"Cтатус замовлення: {order.status}" + "\n" +
+                f"Спосіб оплати: {order.payment_option}" + "\n" +
+                f"Доставка ({order.delivery_option}): {order.delivery_address}" + "\n" +
+                delivery_str +
+                "------------------------------" + "\n" +
                 f"Деталі замовлення: {PromAPIClient.order_url(order.id)}"
             )
 
