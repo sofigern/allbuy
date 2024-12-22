@@ -37,9 +37,13 @@ class SignalBot:
         if self.force_msg:
             message = f"{self.force_msg}\n{message}"
         
-        if notify:
-            for phone in notify:
-                message = f"{message}\n@{phone}"
+        mentions = []
+        for phone in (notify or []):
+            mentions.append({
+                "author": phone,
+                "length": 0,
+                "start": len(message),
+            })
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -49,6 +53,7 @@ class SignalBot:
                     "number": self.phone_number,
                     "recipients": [recepient],
                     "notify_self": False,
+                    "mentions": mentions,
                 }
             ) as resp:
                 if 200 <= resp.status < 300:
