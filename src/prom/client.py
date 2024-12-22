@@ -1,8 +1,10 @@
-import aiohttp
 import logging
 
+import aiohttp
+import dacite
+
 from src.models.order import Order
-from src.models.order_status import OrderStatus
+from src.models.order_status import OrderStatus, OrderStatuses
 
 
 logger = logging.getLogger(__name__)
@@ -12,7 +14,7 @@ class PromAPIClient:
     def __init__(
         self,
         token: str,
-        base_url: str = "https://my.prom.ua/api/v1/", 
+        base_url: str = "https://my.prom.ua/api/v1/",
     ):
         self.base_url = base_url
         self.token = token
@@ -26,19 +28,32 @@ class PromAPIClient:
         )
 
     @classmethod
-    def order_url(self, order_id: int):
+    def order_url(cls, order_id: int):
         return f"https://my.prom.ua/cms/order/edit/{order_id}"
 
     async def get_orders(
         self,
         status: OrderStatus | None = None,
-    ):  
+    ) -> list[Order]:
         params = {"limit": 100}
+        # params["date_to"] = "2024-09-30"
         if status:
             params["status"] = status.name
 
         async with self.client.get("orders/list", params=params) as resp:
-            return (await resp.json()).get("orders", [])
+            response_json = await resp.json()
+
+        return [
+            dacite.from_dict(
+                Order, order_data,
+                config=dacite.Config(
+                    type_hooks={
+                        OrderStatus: lambda s: OrderStatuses.get(s).value,
+                    }
+                )
+            )
+            for order_data in response_json.get("orders", [])
+        ]
 
     async def set_order_status(
         self,
@@ -53,4 +68,4 @@ class PromAPIClient:
                 "status": status.name,
             },
         ) as resp:
-            return (await resp.json())
+            return await resp.json()

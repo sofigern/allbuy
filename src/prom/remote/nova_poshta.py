@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class NovaPoshtaScraperClient(BaseScraperClient):
-   
+
     async def generate_declaration(self, order: Order) -> dict:
         logger.info("Generating declaration for order %s", order)
         scraped_order = await self.get_order(order)
@@ -35,7 +35,7 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
             return (await resp.json())["data"]
-    
+
     async def _delivery_info(
         self,
         scraped_order: dict,
@@ -66,7 +66,7 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 "from_last_name": init_data_order["lastName"],
                 "from_second_name": "",
                 "phone": init_data_order["phone"],
-                
+
                 "description": init_data_order["description"],
                 "sender_warehouse_ref": init_data_order["warehouseFrom"],
                 "box_items": init_data_order["boxItems"],
@@ -87,17 +87,17 @@ class NovaPoshtaScraperClient(BaseScraperClient):
             }
         except KeyError as exc:
             raise GeneratingDeclarationException from exc
-        
+
         if declaration_id := init_data_order.get("declarationId"):
             request["declaration_id"] = declaration_id
-        
+
         if was_printed := init_data_order.get("wasPrinted"):
             request["was_printed"] = was_printed
 
         async with self.client.post(
             "/market/application/nova_poshta/delivery_info",
             headers=self.post_headers(
-                order_id=scraped_order["delivery_option_raw_id"], 
+                order_id=scraped_order["delivery_option_raw_id"],
                 owner_id=init_data_order["ownerId"],
             ),
             json=request,
@@ -106,4 +106,4 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 logger.error("Cookies are outdated. Clearing cookies and raising an exception.")
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
-            return (await resp.json())
+            return await resp.json()

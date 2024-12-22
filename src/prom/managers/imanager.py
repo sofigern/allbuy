@@ -8,13 +8,13 @@ from src.signal.bot import SignalBot
 class IManager:
 
     def __init__(
-        self, 
+        self,
         api_client: PromAPIClient,
         scrape_client: BaseScraperClient | None = None,
         messenger: SignalBot | None = None,
     ):
         raise NotImplementedError
 
-    async def process_order(order: Order) -> Order:
+    async def process_order(self, order: Order) -> Order:
         """Process order."""
         raise NotImplementedError

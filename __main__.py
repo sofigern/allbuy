@@ -6,7 +6,7 @@ import io
 import os
 import urllib
 
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
 
 import google.auth
 from google.cloud import run_v2, secretmanager_v1, firestore
@@ -33,6 +33,7 @@ logging.basicConfig(
 
 def get_cookies():
     return os.getenv("COOKIES")
+
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,10 @@ def parse_arguments():
         action="append"
     )
 
+    parser.add_argument(
+        "--force", help="Force refresh",
+        action="store_true"
+    )
     # Parse the arguments
     args = parser.parse_args()
 
@@ -92,14 +97,14 @@ async def main():
     g_service_client = run_v2.ServicesClient()
     service = g_service_client.get_service(
         name=g_service_client.service_path(
-            project_id, 
+            project_id,
             parsed_data.signal_api_region,
             parsed_data.signal_api_cli,
         )
     )
     service_url = service.urls[0]
     signal_service = urllib.parse.urlparse(service_url).netloc
-    
+
     signal_bot = None
     if not parsed_data.signal_disallowed:
         if not parsed_data.signal_phone or not parsed_data.signal_group:
@@ -109,6 +114,7 @@ async def main():
             "signal_service": signal_service,
             "phone_number": parsed_data.signal_phone,
             "group_id": parsed_data.signal_group,
+            "force": parsed_data.force
         })
 
     prom_client = PromAPIClient(
@@ -154,7 +160,7 @@ async def main():
 
             for order, data in allbuy_bot.paid_orders.items():
                 db.collection("paid_orders").document(order).set(data)
-            
+
             for doc in db.collection("pending_orders").stream():
                 if doc.id not in allbuy_bot.pending_orders:
                     logger.info("%s was processed and removed from the database", doc.id)
@@ -177,5 +183,5 @@ if __name__ == "__main__":
         load_dotenv(stream=io.StringIO(payload))
     else:
         load_dotenv("local.env")
-    
+
     asyncio.run(main())

@@ -2,12 +2,12 @@ import datetime
 import logging
 
 from dataclasses import asdict
-import dacite
 import flatdict
 
 import src.exceptions as e
+from src.models.delivery_status import DeliveryStatuses
 from src.models.order import Order
-from src.models.order_status import OrderStatus, OrderStatuses
+from src.models.order_status import OrderStatuses
 from src.models.payment_option import PaymentOptions
 
 from src.prom.client import PromAPIClient
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class AllBuyBot:
 
     def __init__(
-        self, 
+        self,
         client: PromAPIClient,
         messenger: SignalBot | None = None,
         cookies: str | None = None,
@@ -46,21 +46,20 @@ class AllBuyBot:
         logger.info("Refreshing shop data")
         input_orders = orders or []
 
+        orders = await self.client.get_orders(status=OrderStatuses.RECEIVED.value)
+        for order in orders:
+            if input_orders and str(order.id) not in input_orders:
+                continue
+
+            await self.safe_refresh_order(order)
+
         orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
         processed_paid_orders = {}
         self.retry_orders = set()
-        for order_data in orders:
-            if input_orders and str(order_data["id"]) not in input_orders:
+        for order in orders:
+            if input_orders and str(order.id) not in input_orders:
                 continue
 
-            order: Order = dacite.from_dict(
-                Order, order_data,
-                config=dacite.Config(
-                    type_hooks={
-                        OrderStatus: lambda s: OrderStatuses.get(s).value,
-                    }
-                )
-            )
             processed_paid_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
             if (
                 str(order.id) not in input_orders and
@@ -68,13 +67,13 @@ class AllBuyBot:
             ):
                 processed_paid_orders[str(order.id)]["ts"] = self.paid_orders[str(order.id)]["ts"]
                 continue
-            
+
             order = await self.safe_refresh_order(order)
             if o := processed_paid_orders[str(order.id)]:
                 o["ts"] = datetime.datetime.now().timestamp()
-        
+
         self.paid_orders = {
-            k: v for k, v in processed_paid_orders.items() 
+            k: v for k, v in processed_paid_orders.items()
             if k not in self.retry_orders
         }
 
@@ -82,34 +81,32 @@ class AllBuyBot:
         self.retry_orders = set()
         orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
 
-        for order_data in orders:
-            if input_orders and str(order_data["id"]) not in input_orders:
+        for order in orders:
+            if input_orders and str(order.id) not in input_orders:
                 continue
-            order: Order = dacite.from_dict(
-                Order, order_data,
-                config=dacite.Config(
-                    type_hooks={
-                        OrderStatus: lambda s: OrderStatuses.get(s).value,
-                    }
-                )
+
+            processed_pending_orders[str(order.id)] = (
+                flatdict.FlatDict(asdict(order), delimiter=".")
             )
-            processed_pending_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
+
             if (
                 str(order.id) not in input_orders and
                 str(order.id) in self.pending_orders
             ):
-                processed_pending_orders[str(order.id)]["ts"] = self.pending_orders[str(order.id)]["ts"]
+                processed_pending_orders[str(order.id)]["ts"] = (
+                    self.pending_orders[str(order.id)]["ts"]
+                )
                 continue
-            
+
             order = await self.safe_refresh_order(order)
             if o := processed_pending_orders[str(order.id)]:
                 o["ts"] = datetime.datetime.now().timestamp()
-    
+
         self.pending_orders = {
             k: v for k, v in processed_pending_orders.items()
             if k not in self.retry_orders
         }
-    
+
     async def safe_refresh_order(self, order: Order):
         try:
             order = await self.refresh_order(order)
@@ -130,16 +127,22 @@ class AllBuyBot:
                 await self.messenger.send(str(exc))
         except e.ModifiedDateIsTooOldError as exc:
             logger.info("Ignoring too old orders:\n%s", exc)
+        except e.UnknownFinalizationError as exc:
+            logger.exception("Unknown finalization error:\n%s", exc)
 
         return order
-       
+
     async def refresh_order(self, order: Order) -> Order:
+
         if (
-            datetime.datetime.now() - 
-            order.datetime_modified.replace(tzinfo=None)
-        ) > datetime.timedelta(days=7):
+            order.status != OrderStatuses.RECEIVED.value and
+            (
+                datetime.datetime.now() -
+                order.datetime_modified.replace(tzinfo=None)
+            ) > datetime.timedelta(days=7)
+        ):
             raise e.ModifiedDateIsTooOldError(order)
-        
+
         if (
             order.status == OrderStatuses.PENDING.value and
             (
@@ -154,7 +157,21 @@ class AllBuyBot:
                 if data.declaration_number:
                     raise e.ReadyForDeliveryError(order)
 
-        logger.info(f"Refreshing order %s", order)
+        if (
+            order.status == OrderStatuses.RECEIVED.value and
+            (
+                order.payment_option not in [PaymentOptions.CASH_ON_DELIVERY.value] or
+                order.delivery_provider_data is None or
+                order.delivery_provider_data.unified_status not in [
+                    DeliveryStatuses.DELIVERED_CASH_CRUISE.value.name,
+                    DeliveryStatuses.DELIVERED_CASH_RECEIVED.value.name,
+                    DeliveryStatuses.DELIVERED.value.name,
+                ]
+            )
+        ):
+            raise e.UnknownFinalizationError(order)
+
+        logger.info("Refreshing order %s", order)
 
         manager = self.director.assign(order)
         try:

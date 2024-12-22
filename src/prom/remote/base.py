@@ -1,6 +1,7 @@
-import aiohttp
 import base64
 import logging
+
+import aiohttp
 
 from src.prom.exceptions import OutdatedCookiesError
 from src.prom.utils import prepare_cookies, dict_from_cookiejar
@@ -14,7 +15,7 @@ class BaseScraperClient:
     def __init__(
         self,
         cookies: str | None = None,
-        base_url: str = "https://my.prom.ua/", 
+        base_url: str = "https://my.prom.ua/",
     ):
         self.base_url = base_url
         self.cookies = cookies
@@ -33,7 +34,7 @@ class BaseScraperClient:
         )
 
     @classmethod
-    def order_url(self, order_id: int):
+    def order_url(cls, order_id: int):
         return f"https://my.prom.ua/cms/order/edit/{order_id}"
 
     def post_headers(self, order_id: int, owner_id: int) -> dict:
@@ -48,7 +49,9 @@ class BaseScraperClient:
             "sec-fetch-dest": "empty",
             "sec-fetch-mode": "cors",
             "sec-fetch-site": "same-origin",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            # pylint: disable=C0301
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",   # noqa: E501
+            # pylint: enable=C0301
             "x-csrftoken": cookies["csrf_token"],
             "x-promuserid": str(owner_id),
             "x-requested-with": "XMLHttpRequest",
@@ -70,7 +73,7 @@ class BaseScraperClient:
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
             return (await resp.json())["order"]
-    
+
     async def get_auth(self) -> dict:
         async with self.client.get(
             "/remote/auth/info",
@@ -79,7 +82,7 @@ class BaseScraperClient:
                 logger.error("Cookies are outdated. Clearing cookies and raising an exception.")
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
-            return (await resp.json())
+            return await resp.json()
 
     async def generate_declaration(self, order: Order) -> dict:
         raise NotImplementedError

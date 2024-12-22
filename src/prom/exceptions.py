@@ -4,4 +4,3 @@ class OutdatedCookiesError(Exception):
 
 class GeneratingDeclarationException(Exception):
     pass
-

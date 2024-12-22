@@ -2,15 +2,15 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderStatus:
     id: int
     name: str
     title: str
 
     def __str__(self):
-        return f"{self.title}"
-    
+        return self.title
+
     def __eq__(self, other):
         return self.name == other.name
 

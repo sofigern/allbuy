@@ -7,10 +7,20 @@ class SignalBot:
         signal_service: str,
         phone_number: str,
         group_id: str,
+        force: bool = False,
     ):
         self.service = signal_service
         self.phone_number = phone_number
         self.group_id = group_id
+
+        self.force_msg = ""
+        if force:
+            self.force_msg = (
+                "------------------------------" + "\n"
+                "Це повідомлення відправлено в обов'язковому режимі." + "\n"
+                "В цьому режимі відправка повідомлень може повторювати попередні." + "\n"
+                "------------------------------"
+            )
 
     async def send(self, message: str, debug: bool = False):
         recepient = self.group_id
@@ -23,6 +33,9 @@ class SignalBot:
                 f"{message}"
             )
             recepient = self.phone_number
+
+        if self.force_msg:
+            message = f"{self.force_msg}\n{message}"
 
         async with aiohttp.ClientSession() as session:
             async with session.post(

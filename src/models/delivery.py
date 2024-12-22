@@ -14,7 +14,7 @@ class Delivery:
             number=kwargs.get("int_doc_number"),
             cost=kwargs.get("delivery_cost"),
         )
-    
+
     @classmethod
     def from_up_kwargs(cls, **kwargs):
         return cls(
@@ -22,7 +22,7 @@ class Delivery:
             number=kwargs.get("declarationId"),
             cost=kwargs.get("deliveryCost"),
         )
-    
+
     @classmethod
     def from_rz_kwargs(cls, **kwargs):
         return cls(

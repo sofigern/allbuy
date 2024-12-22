@@ -9,16 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 class UkrPoshtaScraperClient(BaseScraperClient):
-   
+
     async def generate_declaration(self, order: Order) -> dict:
         logger.info("Generating declaration for order %s", order)
         scraped_auth = await self.get_auth()
         scraped_order = await self.get_order(order)
         init_data_order = await self._init_data_order(order)
         delivery_info = await self._delivery_info(
-            order, 
-            scraped_auth, 
-            scraped_order, 
+            order,
+            scraped_auth,
+            scraped_order,
             init_data_order,
         )
         return delivery_info
@@ -39,7 +39,7 @@ class UkrPoshtaScraperClient(BaseScraperClient):
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
             return (await resp.json())["data"]
-    
+
     async def _delivery_info(
         self,
         order: Order,
@@ -64,4 +64,4 @@ class UkrPoshtaScraperClient(BaseScraperClient):
                 logger.error("Cookies are outdated. Clearing cookies and raising an exception.")
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
-            return (await resp.json())
+            return await resp.json()

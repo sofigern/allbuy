@@ -31,7 +31,7 @@ class Order:
         if self.date_created is None:
             return None
         return datetime.datetime.fromisoformat(self.date_created)
-    
+
     @property
     def datetime_modified(self) -> datetime.datetime | None:
         if self.date_modified is None:
@@ -43,9 +43,8 @@ class Order:
             f"{self.id} ({self.datetime_created.date().isoformat()}): {self.price} "
             f"від {self.client}"
         )
-    
+
     def to_text(self):
-        
         client_notes = ""
         if self.client_notes:
             client_notes = (
@@ -56,6 +55,6 @@ class Order:
             f"{self}\n" +
             client_notes
         )
-    
+
     def __eq__(self, other):
         return self.id == other.id

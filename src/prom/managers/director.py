@@ -2,6 +2,7 @@ from src.models.order import Order
 from src.models.delivery_provider import DeliveryProviders
 
 from src.exceptions import DeliveryProviderNotAllowedError
+from src.models.order_status import OrderStatuses
 from src.prom.client import PromAPIClient
 from src.prom.remote.nova_poshta import NovaPoshtaScraperClient
 from src.prom.remote.rozetka import RozetkaScraperClient
@@ -16,7 +17,7 @@ from src.signal.bot import SignalBot
 
 class Director:
     def __init__(
-        self, 
+        self,
         api_client: PromAPIClient,
         messenger: SignalBot | None = None,
         cookies: str | None = None,
@@ -28,6 +29,14 @@ class Director:
         self.managers = {}
 
     def assign(self, order: Order) -> IManager:
+        if order.status == OrderStatuses.RECEIVED.value:
+            if order.status not in self.managers:
+                self.managers[order.status] = DummyManager(
+                    api_client=self.api_client,
+                    messenger=self.messenger,
+                )
+            return self.managers[order.status]
+
         if order.delivery_option not in self.managers:
             manager = None
             if order.delivery_option == DeliveryProviders.PICKUP.value:
@@ -38,21 +47,21 @@ class Director:
             elif order.delivery_option == DeliveryProviders.NOVA_POSHTA.value:
                 scraper_client = NovaPoshtaScraperClient(cookies=self.cookies)
                 manager = NovaPoshtaManager(
-                    api_client=self.api_client, 
+                    api_client=self.api_client,
                     scrape_client=scraper_client,
                     messenger=self.messenger,
                 )
             elif order.delivery_option == DeliveryProviders.UKR_POSHTA.value:
                 scraper_client = UkrPoshtaScraperClient(cookies=self.cookies)
                 manager = UkrPoshtaManager(
-                    api_client=self.api_client, 
+                    api_client=self.api_client,
                     scrape_client=scraper_client,
                     messenger=self.messenger,
                 )
             elif order.delivery_option == DeliveryProviders.ROZETKA.value:
                 scraper_client = RozetkaScraperClient(cookies=self.cookies)
                 manager = RozetkaManager(
-                    api_client=self.api_client, 
+                    api_client=self.api_client,
                     scrape_client=scraper_client,
                     messenger=self.messenger,
                 )

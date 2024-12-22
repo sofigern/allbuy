@@ -47,6 +47,10 @@ class ReadyForDeliveryError(NotAllowedOrderError):
     reason = "Замовлення вже готове до відправлення"
 
 
+class UnknownFinalizationError(NotAllowedOrderError):
+    reason = "Невідомий алгоритм завершення замовлення"
+
+
 class GenerationDeclarationError(Exception):
     def __init__(self, order: Order):
         self.order = order

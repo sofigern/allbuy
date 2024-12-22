@@ -9,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class RozetkaScraperClient(BaseScraperClient):
-   
+
     async def generate_declaration(self, order: Order) -> dict:
         logger.info("Generating declaration for order %s", order)
         scraped_auth = await self.get_auth()
         delivery_info = await self._delivery_info(order, scraped_auth)
         return delivery_info
-    
+
     async def _delivery_info(
         self,
         order: Order,
@@ -24,7 +24,7 @@ class RozetkaScraperClient(BaseScraperClient):
         async with self.client.post(
             "/remote/delivery/rozetka_delivery/create_declaration",
             headers=self.post_headers(
-                order_id=order.id, 
+                order_id=order.id,
                 owner_id=scraped_auth["id"],
             ),
             json={
@@ -35,4 +35,4 @@ class RozetkaScraperClient(BaseScraperClient):
                 logger.error("Cookies are outdated. Clearing cookies and raising an exception.")
                 self.client.cookie_jar.clear()
                 raise OutdatedCookiesError
-            return (await resp.json())
+            return await resp.json()
