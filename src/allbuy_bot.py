@@ -11,7 +11,7 @@ from src.models.order_status import OrderStatuses
 from src.models.payment_option import PaymentOptions
 
 from src.prom.client import PromAPIClient
-from src.prom.exceptions import GeneratingDeclarationException
+from src.prom.exceptions import GeneratingDeclarationException, NotAllowedWarehouseException
 from src.prom.managers.director import Director
 from src.signal.bot import SignalBot
 
@@ -28,6 +28,7 @@ class AllBuyBot:
         cookies: str | None = None,
         paid_orders: dict | None = None,
         pending_orders: dict | None = None,
+        admin_phone: str | None = None,
     ):
         self.client = client
         self.orders = []
@@ -41,6 +42,7 @@ class AllBuyBot:
         self.paid_orders = paid_orders or dict()
         self.pending_orders = pending_orders or dict()
         self.retry_orders = set()
+        self.admin_phone = admin_phone
 
     async def refresh_shop(self, orders: list[str]):
         logger.info("Refreshing shop data")
@@ -120,6 +122,10 @@ class AllBuyBot:
             logger.info("Sending message to the chat:\n%s", exc)
             if self.messenger:
                 await self.messenger.send(str(exc))
+        except e.DeliveryProviderError as exc:
+            logger.info("Sending message to the chat:\n%s", exc)
+            if self.messenger:
+                await self.messenger.send(str(exc), notify=[self.admin_phone])
         except e.GenerationDeclarationError as exc:
             self.retry_orders.add(str(order.id))
             logger.info("Sending message to the chat:\n%s", exc)
@@ -179,5 +185,8 @@ class AllBuyBot:
         except GeneratingDeclarationException as exc:
             logger.exception("Error while generating declaration for order")
             raise e.GenerationDeclarationError(order) from exc
+        except NotAllowedWarehouseException as exc:
+            logger.exception("Error while generating declaration for order")
+            raise e.DeliveryProviderError(order=order) from exc
 
         return order

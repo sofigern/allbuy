@@ -67,3 +67,22 @@ class GenerationDeclarationError(Exception):
             "------------------------------" + "\n"
             f"Деталі замовлення: {PromAPIClient.order_url(self.order.id)}"
         )
+
+
+class DeliveryProviderError(Exception):
+    def __init__(self, order: Order):
+        self.order = order
+
+    def __str__(self):
+        return (
+            f"Замовлення {self.order.to_text()}"
+            "------------------------------" + "\n"
+            f"Не може згенерувати декларацію з причини: {self.__cause__}" + "\n" +
+            "Опрацюйте замовлення вручну!" + "\n" +
+            "------------------------------" + "\n" +
+            f"Статус замовлення: {self.order.status}." + "\n"
+            f"Постачальник доставки: {self.order.delivery_option}." + "\n"
+            f"Спосіб оплати: {self.order.payment_option}." + "\n"
+            "------------------------------" + "\n"
+            f"Деталі замовлення: {PromAPIClient.order_url(self.order.id)}"
+        )

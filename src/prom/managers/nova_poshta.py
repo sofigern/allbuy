@@ -5,6 +5,7 @@ from src.models.delivery import Delivery
 from src.models.order import Order
 from src.models.order_status import OrderStatuses
 from src.models.payment_option import PaymentOptions
+from src.prom.exceptions import NotAllowedWarehouseException
 from src.prom.managers.dummy import DummyManager
 
 
@@ -22,6 +23,10 @@ class NovaPoshtaManager(DummyManager):
             raise PaymentOptionDisabledError(order)
         delivery = None
         delivery_info = await self.scrape_client.generate_declaration(order)
+        
+        if delivery_info.get("status") == "error":
+            raise NotAllowedWarehouseException(delivery_info["message"])
+
         delivery = Delivery.from_np_kwargs(**delivery_info["fields"])
         if order.status == OrderStatuses.PENDING.value:
             order = await self.receive_order(order)

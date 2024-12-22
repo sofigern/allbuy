@@ -4,3 +4,7 @@ class OutdatedCookiesError(Exception):
 
 class GeneratingDeclarationException(Exception):
     pass
+
+
+class NotAllowedWarehouseException(Exception):
+    pass

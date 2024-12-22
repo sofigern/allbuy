@@ -84,6 +84,12 @@ def parse_arguments():
         "--force", help="Force refresh",
         action="store_true"
     )
+
+    parser.add_argument(
+        "--admin-phone", help="Admin phone number",
+        default=os.getenv("ADMIN_PHONE")
+    )
+
     # Parse the arguments
     args = parser.parse_args()
 
@@ -140,7 +146,8 @@ async def main():
         messenger=signal_bot,
         cookies=get_cookies(),
         paid_orders=paid_orders,
-        pending_orders=pending_orders
+        pending_orders=pending_orders,
+        admin_phone=parsed_data.admin_phone,
     )
 
     try:

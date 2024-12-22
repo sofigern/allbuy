@@ -22,7 +22,7 @@ class SignalBot:
                 "------------------------------"
             )
 
-    async def send(self, message: str, debug: bool = False):
+    async def send(self, message: str, debug: bool = False, notify: list[str] = None):
         recepient = self.group_id
         if debug:
             message = (
@@ -36,6 +36,10 @@ class SignalBot:
 
         if self.force_msg:
             message = f"{self.force_msg}\n{message}"
+        
+        if notify:
+            for phone in notify:
+                message = f"{message}\n@{phone}"
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
