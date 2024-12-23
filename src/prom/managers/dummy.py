@@ -1,4 +1,5 @@
 from dataclasses import replace
+import datetime
 import logging
 
 from src.models.delivery import Delivery
@@ -72,6 +73,9 @@ class DummyManager(IManager):
         logger.info("%s is processing order %s", self.__class__, order)
 
         if order.status == OrderStatuses.RECEIVED.value:
+            # if order.datetime_created.date() < datetime.date(2020, 1, 1):
+            #     order = await self.finalize_order(order)
+            # el
             if (
                 (
                     order.payment_option is None or
@@ -80,6 +84,8 @@ class DummyManager(IManager):
                         PaymentOptions.CASH_ON_DELIVERY.value,
                         PaymentOptions.CASH_ON_DELIVERY_HISTORICAL.value,
                         PaymentOptions.CASH_ON_DELIVERY_NOVA_POSHTA.value,
+                        PaymentOptions.PRIVAT_BANK_CARD.value,
+                        PaymentOptions.NON_CASH_WITH_VAT.value,
                     ]
                 ) and
                 (
@@ -92,6 +98,7 @@ class DummyManager(IManager):
                             DeliveryStatuses.DELIVERED.value.name
                         ] and
                         order.delivery_option in [
+                            DeliveryProviders.MEEST.value,
                             DeliveryProviders.UKR_POSHTA.value,
                             DeliveryProviders.NOVA_POSHTA.value,
                         ]
@@ -99,6 +106,7 @@ class DummyManager(IManager):
                 )
             ):
                 order = await self.finalize_order(order)
+
         elif order.status == OrderStatuses.PENDING.value:
             order = await self.receive_order(order)
 

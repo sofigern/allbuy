@@ -46,3 +46,13 @@ class PaymentOptions(Enum):
         name="Наличными",
         description="",
     )
+    PRIVAT_BANK_CARD = PaymentOption(
+        id=5001722,
+        name="Оплата на карту Приват банка",
+        description="",
+    )
+    NON_CASH_WITH_VAT = PaymentOption(
+        id=5018050,
+        name="Безналичный расчет с НДС и без НДС",
+        description="",
+    )

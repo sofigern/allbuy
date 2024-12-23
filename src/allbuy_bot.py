@@ -48,18 +48,18 @@ class AllBuyBot:
         logger.info("Refreshing shop data")
         input_orders = orders or []
         
-        processing = True
-        date_to = None
+        # processing = True
+        # date_to = None
         # while processing:
         orders = await self.client.get_orders(status=OrderStatuses.RECEIVED.value, date_to=date_to)
-        # if not orders:
-        #     processing = False
-        #     break
+            # if not orders:
+            #     processing = False
+            #     break
 
         for order in orders:
             if input_orders and str(order.id) not in input_orders:
                 continue
-            date_to = order.datetime_created.strftime("%Y-%m-%dT%H:%M:%S")
+            # date_to = order.datetime_created.strftime("%Y-%m-%dT%H:%M:%S")
             await self.safe_refresh_order(order)
 
         orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
@@ -173,6 +173,7 @@ class AllBuyBot:
                     raise e.ReadyForDeliveryError(order)
 
         if (
+            # order.datetime_created.date() > datetime.date(2020, 1, 1) and
             order.status == OrderStatuses.RECEIVED.value and
             (
                 (
@@ -182,6 +183,8 @@ class AllBuyBot:
                         PaymentOptions.CASH_ON_DELIVERY.value,
                         PaymentOptions.CASH_ON_DELIVERY_HISTORICAL.value,
                         PaymentOptions.CASH_ON_DELIVERY_NOVA_POSHTA.value,
+                        PaymentOptions.PRIVAT_BANK_CARD.value,
+                        PaymentOptions.NON_CASH_WITH_VAT.value,
                     ]
                 ) or
                 order.delivery_provider_data is None or
