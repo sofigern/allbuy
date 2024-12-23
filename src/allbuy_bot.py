@@ -49,7 +49,7 @@ class AllBuyBot:
         input_orders = orders or []
         
         # processing = True
-        # date_to = None
+        date_to = None
         # while processing:
         orders = await self.client.get_orders(status=OrderStatuses.RECEIVED.value, date_to=date_to)
             # if not orders:
