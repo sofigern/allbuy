@@ -16,11 +16,11 @@ class OrderStatus:
 
 
 class OrderStatuses(Enum):
-    PENDING = OrderStatus(id=0, title="Новый", name="pending")
-    RECEIVED = OrderStatus(id=1, title="Принят", name="received")
-    DELIVERED = OrderStatus(id=3, title="Выполнен", name="delivered")
-    CANCELED = OrderStatus(id=4, title="Отменен", name="canceled")
-    PAID = OrderStatus(id=6, title="Оплаченный", name="paid")
+    PENDING = OrderStatus(id=0, title="Нове", name="pending")
+    RECEIVED = OrderStatus(id=1, title="Прийняте", name="received")
+    DELIVERED = OrderStatus(id=3, title="Виконане", name="delivered")
+    CANCELED = OrderStatus(id=4, title="Скасоване", name="canceled")
+    PAID = OrderStatus(id=6, title="Оплачене", name="paid")
 
     @classmethod
     def get(cls, key):

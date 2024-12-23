@@ -23,36 +23,36 @@ class PaymentOptions(Enum):
     )
     PARTS = PaymentOption(
         id=10061095,
-        name="Оплатить частями",
+        name="Оплатити частинами",
         description="",
     )
     CASH_ON_DELIVERY = PaymentOption(
         id=8768054,
-        name="Наложенный платеж",
+        name="Післяплата",
         description="",
     )
     CASH_ON_DELIVERY_HISTORICAL = PaymentOption(
         id=5001723,
-        name="Наложенный платеж",
+        name="Післяплата",
         description="",
     )
     CASH_ON_DELIVERY_NOVA_POSHTA = PaymentOption(
         id=6146097,
-        name='Наложенный платеж "Нова Пошта"',
+        name='Післяплата "Нова Пошта"',
         description="",
     )
     CASH = PaymentOption(
         id=5001721,
-        name="Наличными",
+        name="Готівкою",
         description="",
     )
     PRIVAT_BANK_CARD = PaymentOption(
         id=5001722,
-        name="Оплата на карту Приват банка",
+        name="Оплата на карту Приват банку",
         description="",
     )
     NON_CASH_WITH_VAT = PaymentOption(
         id=5018050,
-        name="Безналичный расчет с НДС и без НДС",
+        name="Безготівковий розрахунок з ПДВ і без ПДВ",
         description="",
     )

@@ -2,7 +2,6 @@ from src.models.order import Order
 from src.models.delivery_provider import DeliveryProviders
 
 from src.exceptions import DeliveryProviderNotAllowedError
-from src.models.order_status import OrderStatuses
 from src.prom.client import PromAPIClient
 from src.prom.remote.nova_poshta import NovaPoshtaScraperClient
 from src.prom.remote.rozetka import RozetkaScraperClient
@@ -10,6 +9,7 @@ from src.prom.remote.ukr_poshta import UkrPoshtaScraperClient
 from src.prom.managers.imanager import IManager
 from src.prom.managers.dummy import DummyManager
 from src.prom.managers.nova_poshta import NovaPoshtaManager
+from src.prom.managers.pickup import PickupManager
 from src.prom.managers.rozetka import RozetkaManager
 from src.prom.managers.ukr_poshta import UkrPoshtaManager
 from src.signal.bot import SignalBot
@@ -29,18 +29,11 @@ class Director:
         self.managers = {}
 
     def assign(self, order: Order) -> IManager:
-        if order.status == OrderStatuses.RECEIVED.value:
-            if order.status not in self.managers:
-                self.managers[order.status] = DummyManager(
-                    api_client=self.api_client,
-                    messenger=self.messenger,
-                )
-            return self.managers[order.status]
 
         if order.delivery_option not in self.managers:
             manager = None
             if order.delivery_option == DeliveryProviders.PICKUP.value:
-                manager = DummyManager(
+                manager = PickupManager(
                     api_client=self.api_client,
                     messenger=self.messenger,
                 )
@@ -63,6 +56,11 @@ class Director:
                 manager = RozetkaManager(
                     api_client=self.api_client,
                     scrape_client=scraper_client,
+                    messenger=self.messenger,
+                )
+            else:
+                manager = DummyManager(
+                    api_client=self.api_client,
                     messenger=self.messenger,
                 )
 

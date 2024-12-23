@@ -30,13 +30,17 @@ class Order:
     def datetime_created(self) -> datetime.datetime | None:
         if self.date_created is None:
             return None
-        return datetime.datetime.fromisoformat(self.date_created)
+        return datetime.datetime.fromisoformat(self.date_created).replace(tzinfo=None)
 
     @property
     def datetime_modified(self) -> datetime.datetime | None:
         if self.date_modified is None:
             return None
-        return datetime.datetime.fromisoformat(self.date_modified)
+        return datetime.datetime.fromisoformat(self.date_modified).replace(tzinfo=None)
+
+    @property
+    def age(self) -> datetime.timedelta:
+        return datetime.datetime.now() - self.datetime_created
 
     def __str__(self):
         return (

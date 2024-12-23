@@ -29,7 +29,7 @@ class DeliveryProviders(Enum):
         id=9062114,
         enabled=True,
         type="pickup",
-        name="Самовывоз",
+        name="Самовивіз",
         comment=None,
     )
     UKR_POSHTA = DeliveryProvider(
@@ -43,7 +43,7 @@ class DeliveryProviders(Enum):
         id=15330563,
         enabled=True,
         type="rozetka_delivery",
-        name="Магазины Rozetka",
+        name="Магазини Rozetka",
         comment=None,
     )
     MEEST = DeliveryProvider(

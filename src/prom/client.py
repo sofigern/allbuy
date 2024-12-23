@@ -65,13 +65,24 @@ class PromAPIClient:
         self,
         order: Order,
         status: OrderStatus,
+        cancellation_reason: str | None = None,
+        cancellation_text: str | None = None,
     ) -> dict:
         logger.info("Setting order %s status to %s", order, status)
+
+        request_data = {
+            "ids": [order.id],
+            "status": status.name,
+        }
+
+        if cancellation_reason:
+            request_data["cancellation_reason"] = cancellation_reason
+
+        if cancellation_text:
+            request_data["cancellation_text"] = cancellation_text
+
         async with self.client.post(
             "orders/set_status",
-            json={
-                "ids": [order.id],
-                "status": status.name,
-            },
+            json=request_data,
         ) as resp:
             return await resp.json()

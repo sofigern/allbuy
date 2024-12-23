@@ -47,7 +47,7 @@ class AllBuyBot:
     async def refresh_shop(self, orders: list[str]):
         logger.info("Refreshing shop data")
         input_orders = orders or []
-        
+
         # processing = True
         date_to = None
         # while processing:
@@ -146,15 +146,19 @@ class AllBuyBot:
         return order
 
     async def refresh_order(self, order: Order) -> Order:
-
-        if (
-            order.status != OrderStatuses.RECEIVED.value and
-            (
-                datetime.datetime.now() -
-                order.datetime_modified.replace(tzinfo=None)
-            ) > datetime.timedelta(days=7)
+        
+        if (   
+            not order.delivery_provider_data or
+            order.delivery_provider_data.unified_status not in [
+                DeliveryStatuses.RETURNED.value.name,
+                DeliveryStatuses.REJECTED.value.name,
+            ]
         ):
-            raise e.ModifiedDateIsTooOldError(order)
+            if (
+                order.status != OrderStatuses.RECEIVED.value and
+                order.age > datetime.timedelta(days=7)
+            ):
+                raise e.ModifiedDateIsTooOldError(order)
 
         if (
             order.status == OrderStatuses.PENDING.value and
@@ -167,35 +171,7 @@ class AllBuyBot:
         ):
             raise e.IncompletePaymentError(order)
 
-        if order.status == OrderStatuses.PAID.value:
-            if (data := order.delivery_provider_data):
-                if data.declaration_number:
-                    raise e.ReadyForDeliveryError(order)
 
-        if (
-            # order.datetime_created.date() > datetime.date(2020, 1, 1) and
-            order.status == OrderStatuses.RECEIVED.value and
-            (
-                (
-                    order.payment_option is not None and
-                    order.payment_option not in [
-                        PaymentOptions.CASH.value,
-                        PaymentOptions.CASH_ON_DELIVERY.value,
-                        PaymentOptions.CASH_ON_DELIVERY_HISTORICAL.value,
-                        PaymentOptions.CASH_ON_DELIVERY_NOVA_POSHTA.value,
-                        PaymentOptions.PRIVAT_BANK_CARD.value,
-                        PaymentOptions.NON_CASH_WITH_VAT.value,
-                    ]
-                ) or
-                order.delivery_provider_data is None or
-                order.delivery_provider_data.unified_status not in [
-                    DeliveryStatuses.DELIVERED_CASH_CRUISE.value.name,
-                    DeliveryStatuses.DELIVERED_CASH_RECEIVED.value.name,
-                    DeliveryStatuses.DELIVERED.value.name,
-                ]
-            )
-        ):
-            raise e.UnknownFinalizationError(order)
 
         logger.info("Refreshing order %s", order)
 

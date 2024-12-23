@@ -36,7 +36,7 @@ class SignalBot:
 
         if self.force_msg:
             message = f"{self.force_msg}\n{message}"
-        
+
         mentions = []
         for phone in (notify or []):
             mentions.append({

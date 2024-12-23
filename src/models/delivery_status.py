@@ -18,18 +18,29 @@ class DeliveryStatus:
 class DeliveryStatuses(Enum):
     DELIVERED_CASH_CRUISE = DeliveryStatus(
         id=None,
-        title="Получено. Ожидайте SMS о поступлении денежного перевода",
+        title="Отримано. Очікуйте SMS про надходження грошового переказу",
         name="delivered_cash_cruise",
     )
     DELIVERED_CASH_RECEIVED = DeliveryStatus(
         id=None,
-        title="Получено. Денежный перевод выдан",
+        title="Отримано. Грошовий переказ видано",
         name="delivered_cash_received",
     )
     DELIVERED = DeliveryStatus(
         id=None,
-        title="Получено",
+        title="Отримано",
         name="delivered",
+    )
+
+    REJECTED = DeliveryStatus(
+        id=None,
+        title="Відмова одержувача",
+        name="rejected",
+    )
+    RETURNED = DeliveryStatus(
+        id=None,
+        title="Повернуте відправникові",
+        name="returned",
     )
 
     @classmethod

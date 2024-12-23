@@ -2,9 +2,11 @@ from dataclasses import replace
 import datetime
 import logging
 
+
+from src.exceptions import UnknownFinalizationError
 from src.models.delivery import Delivery
 from src.models.delivery_provider import DeliveryProviders
-from src.models.delivery_status import DeliveryStatuses
+from src.models.delivery_status import DeliveryStatus, DeliveryStatuses
 from src.models.order import Order
 from src.models.order_status import OrderStatuses
 from src.models.payment_option import PaymentOptions
@@ -60,8 +62,19 @@ class DummyManager(IManager):
             )
 
     async def receive_order(self, order: Order) -> Order:
-        await self.api_client.set_order_status(order, OrderStatuses.RECEIVED.value)
-        order = replace(order, status=OrderStatuses.RECEIVED.value)
+        if order.status == OrderStatuses.PENDING.value:
+            await self.api_client.set_order_status(order, OrderStatuses.RECEIVED.value)
+            order = replace(order, status=OrderStatuses.RECEIVED.value)
+        return order
+
+    async def cancel_order(self, order: Order, delivery_status: DeliveryStatus) -> Order:
+        await self.api_client.set_order_status(
+            order, OrderStatuses.CANCELED.value,
+            cancellation_reason="another",
+            cancellation_text=delivery_status.title,
+        )
+
+        order = replace(order, status=OrderStatuses.CANCELED.value)
         return order
 
     async def finalize_order(self, order: Order) -> Order:
@@ -69,8 +82,19 @@ class DummyManager(IManager):
         order = replace(order, status=OrderStatuses.DELIVERED.value)
         return order
 
-    async def process_order(self, order: Order) -> Order:
-        logger.info("%s is processing order %s", self.__class__, order)
+    async def cancellation_hook(self, order: Order) -> Order:
+        logger.info("Checking if order %s can be canceled", order)
+        if (
+            order.age > datetime.timedelta(days=60) and
+            order.delivery_provider_data and
+            (status := order.delivery_provider_data.unified_status) in [
+                DeliveryStatuses.RETURNED.value.name,
+                DeliveryStatuses.REJECTED.value.name,
+            ]
+        ):
+            order = await self.cancel_order(order, DeliveryStatuses.get(status).value)
+            await self.notify(order)
+            return order
 
         if order.status == OrderStatuses.RECEIVED.value:
             # if order.datetime_created.date() < datetime.date(2020, 1, 1):
@@ -88,6 +112,7 @@ class DummyManager(IManager):
                         PaymentOptions.NON_CASH_WITH_VAT.value,
                     ]
                 ) and
+                order.delivery_provider_data and
                 (
                     order.delivery_provider_data.unified_status in [
                         DeliveryStatuses.DELIVERED_CASH_CRUISE.value.name,
@@ -106,9 +131,21 @@ class DummyManager(IManager):
                 )
             ):
                 order = await self.finalize_order(order)
+                await self.notify(order)
+                return order
+        
+        if order.status == OrderStatuses.RECEIVED.value:
+            raise UnknownFinalizationError(order)
 
-        elif order.status == OrderStatuses.PENDING.value:
-            order = await self.receive_order(order)
+        return order
 
-        await self.notify(order)
+    async def process_order(self, order: Order) -> Order:
+        logger.info("%s is processing order %s", self.__class__, order)
+        order = await self.cancellation_hook(order)
+        if order.status in [
+            OrderStatuses.CANCELED.value,
+            OrderStatuses.DELIVERED.value,
+        ]:
+            return order
+
         return order
