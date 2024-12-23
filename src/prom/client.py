@@ -34,11 +34,17 @@ class PromAPIClient:
     async def get_orders(
         self,
         status: OrderStatus | None = None,
+        date_to: str | None = None,
     ) -> list[Order]:
         params = {"limit": 100}
-        # params["date_to"] = "2024-09-30"
+
+        if date_to:
+            params["date_to"] = date_to
+
         if status:
             params["status"] = status.name
+
+        logger.info("Getting orders with params: %s", params)
 
         async with self.client.get("orders/list", params=params) as resp:
             response_json = await resp.json()

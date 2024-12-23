@@ -5,9 +5,9 @@ from enum import Enum
 @dataclass
 class Client:
     id: int
-    first_name: str = ""
-    last_name: str = ""
-    phone: str = ""
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.phone})"

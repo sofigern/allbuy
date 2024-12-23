@@ -73,7 +73,15 @@ class DummyManager(IManager):
 
         if order.status == OrderStatuses.RECEIVED.value:
             if (
-                order.payment_option == PaymentOptions.CASH_ON_DELIVERY.value and
+                (
+                    order.payment_option is None or
+                    order.payment_option in [
+                        PaymentOptions.CASH.value,
+                        PaymentOptions.CASH_ON_DELIVERY.value,
+                        PaymentOptions.CASH_ON_DELIVERY_HISTORICAL.value,
+                        PaymentOptions.CASH_ON_DELIVERY_NOVA_POSHTA.value,
+                    ]
+                ) and
                 (
                     order.delivery_provider_data.unified_status in [
                         DeliveryStatuses.DELIVERED_CASH_CRUISE.value.name,
@@ -83,7 +91,10 @@ class DummyManager(IManager):
                         order.delivery_provider_data.unified_status in [
                             DeliveryStatuses.DELIVERED.value.name
                         ] and
-                        order.delivery_option == DeliveryProviders.UKR_POSHTA.value
+                        order.delivery_option in [
+                            DeliveryProviders.UKR_POSHTA.value,
+                            DeliveryProviders.NOVA_POSHTA.value,
+                        ]
                     )
                 )
             ):

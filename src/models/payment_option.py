@@ -31,3 +31,18 @@ class PaymentOptions(Enum):
         name="Наложенный платеж",
         description="",
     )
+    CASH_ON_DELIVERY_HISTORICAL = PaymentOption(
+        id=5001723,
+        name="Наложенный платеж",
+        description="",
+    )
+    CASH_ON_DELIVERY_NOVA_POSHTA = PaymentOption(
+        id=6146097,
+        name='Наложенный платеж "Нова Пошта"',
+        description="",
+    )
+    CASH = PaymentOption(
+        id=5001721,
+        name="Наличными",
+        description="",
+    )

@@ -47,12 +47,19 @@ class AllBuyBot:
     async def refresh_shop(self, orders: list[str]):
         logger.info("Refreshing shop data")
         input_orders = orders or []
+        
+        processing = True
+        date_to = None
+        # while processing:
+        orders = await self.client.get_orders(status=OrderStatuses.RECEIVED.value, date_to=date_to)
+        # if not orders:
+        #     processing = False
+        #     break
 
-        orders = await self.client.get_orders(status=OrderStatuses.RECEIVED.value)
         for order in orders:
             if input_orders and str(order.id) not in input_orders:
                 continue
-
+            date_to = order.datetime_created.strftime("%Y-%m-%dT%H:%M:%S")
             await self.safe_refresh_order(order)
 
         orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
@@ -152,8 +159,10 @@ class AllBuyBot:
         if (
             order.status == OrderStatuses.PENDING.value and
             (
-                order.payment_option == PaymentOptions.PROM.value or
-                order.payment_option == PaymentOptions.PARTS.value
+                order.payment_option in [
+                    PaymentOptions.PROM.value,
+                    PaymentOptions.PARTS.value,
+                ]
             )
         ):
             raise e.IncompletePaymentError(order)
@@ -166,7 +175,15 @@ class AllBuyBot:
         if (
             order.status == OrderStatuses.RECEIVED.value and
             (
-                order.payment_option not in [PaymentOptions.CASH_ON_DELIVERY.value] or
+                (
+                    order.payment_option is not None and
+                    order.payment_option not in [
+                        PaymentOptions.CASH.value,
+                        PaymentOptions.CASH_ON_DELIVERY.value,
+                        PaymentOptions.CASH_ON_DELIVERY_HISTORICAL.value,
+                        PaymentOptions.CASH_ON_DELIVERY_NOVA_POSHTA.value,
+                    ]
+                ) or
                 order.delivery_provider_data is None or
                 order.delivery_provider_data.unified_status not in [
                     DeliveryStatuses.DELIVERED_CASH_CRUISE.value.name,

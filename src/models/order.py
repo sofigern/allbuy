@@ -16,10 +16,10 @@ class Order:
     date_created: str
     date_modified: str
     delivery_address: str
-    delivery_option: DeliveryProvider
-    payment_option: PaymentOption
+    delivery_option: DeliveryProvider | None
     client: Client
-    client_notes: str
+    client_notes: str | None = None
+    payment_option: PaymentOption | None = None
     delivery_provider_data: DeliveryProviderData | None = None
     phone: str = field(repr=False, default="")
 

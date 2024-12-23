@@ -46,3 +46,17 @@ class DeliveryProviders(Enum):
         name="Магазины Rozetka",
         comment=None,
     )
+    MEEST = DeliveryProvider(
+        id=12799845,
+        enabled=True,
+        type="meest",
+        name="Meest ПОШТА",
+        comment=None,
+    )
+    JUSTIN = DeliveryProvider(
+        id=12799844,
+        enabled=True,
+        type="justin",
+        name='Доставка "Justin"',
+        comment=None,
+    )
