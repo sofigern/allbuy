@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from src.models.order import Order
@@ -83,7 +84,7 @@ class NovaPoshtaScraperClient(BaseScraperClient):
                 "cod_amount": init_data_order.get("cod_amount", str(default_price)),
                 "cod_payer_type": init_data_order.get("cod_payer_type", default_payer.lower()),
 
-                "send_date": init_data_order.get("sendDate", init_data_order["dateModified"]),
+                "send_date": init_data_order.get("sendDate", datetime.date.today().strftime("%d.%m.%Y")),
             }
         except KeyError as exc:
             raise GeneratingDeclarationException from exc
