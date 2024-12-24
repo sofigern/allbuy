@@ -3,11 +3,13 @@ from src.models.delivery_provider import DeliveryProviders
 
 from src.exceptions import DeliveryProviderNotAllowedError
 from src.prom.client import PromAPIClient
+from src.prom.remote.meest import MeestScraperClient
 from src.prom.remote.nova_poshta import NovaPoshtaScraperClient
 from src.prom.remote.rozetka import RozetkaScraperClient
 from src.prom.remote.ukr_poshta import UkrPoshtaScraperClient
 from src.prom.managers.imanager import IManager
 from src.prom.managers.dummy import DummyManager
+from src.prom.managers.meest import MeestManager
 from src.prom.managers.nova_poshta import NovaPoshtaManager
 from src.prom.managers.pickup import PickupManager
 from src.prom.managers.rozetka import RozetkaManager
@@ -54,6 +56,13 @@ class Director:
             elif order.delivery_option == DeliveryProviders.ROZETKA.value:
                 scraper_client = RozetkaScraperClient(cookies=self.cookies)
                 manager = RozetkaManager(
+                    api_client=self.api_client,
+                    scrape_client=scraper_client,
+                    messenger=self.messenger,
+                )
+            elif order.delivery_option == DeliveryProviders.MEEST.value:
+                scraper_client = MeestScraperClient(cookies=self.cookies)
+                manager = MeestManager(
                     api_client=self.api_client,
                     scrape_client=scraper_client,
                     messenger=self.messenger,

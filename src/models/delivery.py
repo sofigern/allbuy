@@ -30,3 +30,11 @@ class Delivery:
             number=kwargs.get("declarationId"),
             cost=kwargs.get("deliveryCost"),
         )
+
+    @classmethod
+    def from_meest_kwargs(cls, **kwargs):
+        return cls(
+            id=None,
+            number=kwargs.get("declarationRef"),
+            cost=kwargs.get("deliveryCost"),
+        )
