@@ -10,7 +10,7 @@ from src.models.order_status import OrderStatuses
 
 from src.prom.client import PromAPIClient
 from src.prom.exceptions import GeneratingDeclarationException, NotAllowedWarehouseException
-from src.prom.managers.director import Director
+from src.prom.managers.director import Director, DummyManager
 from src.signal.bot import SignalBot
 
 
@@ -150,5 +150,8 @@ class AllBuyBot:
         except NotAllowedWarehouseException as exc:
             logger.exception("Error while generating declaration for order")
             raise e.DeliveryProviderError(order=order) from exc
+        else:
+            if initial and type(manager) is DummyManager:
+                raise e.DeliveryProviderNotAllowedError(order)
 
         return order
