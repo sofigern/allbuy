@@ -5,6 +5,7 @@ import dacite
 
 from src.models.order import Order
 from src.models.order_status import OrderStatus, OrderStatuses
+from src.models.payment_status import PaymentStatus, PaymentStatuses
 
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,8 @@ class PromAPIClient:
                 config=dacite.Config(
                     type_hooks={
                         OrderStatus: lambda s: OrderStatuses.get(s).value,
+                        PaymentStatus: lambda s:
+                            PaymentStatuses.get(s, PaymentStatuses.UNDEFINED).value,
                     }
                 )
             )

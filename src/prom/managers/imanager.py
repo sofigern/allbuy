@@ -15,6 +15,10 @@ class IManager:
     ):
         raise NotImplementedError
 
-    async def process_order(self, order: Order) -> Order:
+    async def process_order(
+        self,
+        order: Order,
+        initial: bool = False,
+    ) -> Order:
         """Process order."""
         raise NotImplementedError

@@ -3,10 +3,14 @@ import datetime
 import logging
 
 
-from src.exceptions import UnknownFinalizationError
+from src.exceptions import (
+    UnknownFinalizationError,
+    IncompletePaymentError,
+    ModifiedDateIsTooOldError,
+)
 from src.models.delivery import Delivery
 from src.models.delivery_provider import DeliveryProviders
-from src.models.delivery_status import DeliveryStatus, DeliveryStatuses
+from src.models.delivery_status import DeliveryStatuses
 from src.models.order import Order
 from src.models.order_status import OrderStatuses
 from src.models.payment_option import PaymentOptions
@@ -48,6 +52,10 @@ class DummyManager(IManager):
             ):
                 delivery_status = f"Статус доставки: {DeliveryStatuses.get(status).value}\n"
 
+            payment_status = ""
+            if order.payment_data:
+                payment_status = f"Статус оплати: {order.payment_data.status}\n"
+
             await self.messenger.send(
                 f"Замовлення {order} було успішно {order.status}" + "\n" +
                 "------------------------------" + "\n" +
@@ -55,6 +63,7 @@ class DummyManager(IManager):
                 f"Cтатус замовлення: {order.status}" + "\n" +
                 delivery_status +
                 f"Спосіб оплати: {order.payment_option}" + "\n" +
+                payment_status +
                 f"Доставка ({order.delivery_option}): {order.delivery_address}" + "\n" +
                 delivery_str +
                 "------------------------------" + "\n" +
@@ -67,11 +76,16 @@ class DummyManager(IManager):
             order = replace(order, status=OrderStatuses.RECEIVED.value)
         return order
 
-    async def cancel_order(self, order: Order, delivery_status: DeliveryStatus) -> Order:
+    async def cancel_order(
+        self,
+        order: Order,
+        cancellation_reason: str,
+        cancellation_text: str | None = None,
+    ) -> Order:
         await self.api_client.set_order_status(
             order, OrderStatuses.CANCELED.value,
-            cancellation_reason="another",
-            cancellation_text=delivery_status.title,
+            cancellation_reason=cancellation_reason,
+            cancellation_text=cancellation_text,
         )
 
         order = replace(order, status=OrderStatuses.CANCELED.value)
@@ -92,9 +106,30 @@ class DummyManager(IManager):
                 DeliveryStatuses.REJECTED.value.name,
             ]
         ):
-            order = await self.cancel_order(order, DeliveryStatuses.get(status).value)
+            order = await self.cancel_order(
+                order,
+                cancellation_reason="another",
+                cancellation_text=DeliveryStatuses.get(status).value.title
+            )
             await self.notify(order)
             return order
+
+        if (
+            order.status == OrderStatuses.PENDING.value and
+            order.payment_option in [
+                PaymentOptions.PROM.value,
+                PaymentOptions.PARTS.value,
+            ]
+        ):
+            if order.age > datetime.timedelta(days=60):
+                order = await self.cancel_order(
+                    order,
+                    cancellation_reason="payment_not_received",
+                )
+                await self.notify(order)
+                return order
+
+            raise IncompletePaymentError(order)
 
         if order.status == OrderStatuses.RECEIVED.value:
             # if order.datetime_created.date() < datetime.date(2020, 1, 1):
@@ -133,19 +168,16 @@ class DummyManager(IManager):
                 order = await self.finalize_order(order)
                 await self.notify(order)
                 return order
-        
+
+        if order.age > datetime.timedelta(days=7):
+            raise ModifiedDateIsTooOldError(order)
+
         if order.status == OrderStatuses.RECEIVED.value:
             raise UnknownFinalizationError(order)
 
         return order
 
-    async def process_order(self, order: Order) -> Order:
+    async def process_order(self, order: Order, initial: bool = False) -> Order:
         logger.info("%s is processing order %s", self.__class__, order)
         order = await self.cancellation_hook(order)
-        if order.status in [
-            OrderStatuses.CANCELED.value,
-            OrderStatuses.DELIVERED.value,
-        ]:
-            return order
-
         return order

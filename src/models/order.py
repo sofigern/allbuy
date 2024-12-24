@@ -6,6 +6,7 @@ from src.models.delivery_provider import DeliveryProvider
 from src.models.delivery_provider_data import DeliveryProviderData
 from src.models.order_status import OrderStatus
 from src.models.payment_option import PaymentOption
+from src.models.payment_data import PaymentData
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class Order:
     client: Client
     client_notes: str | None = None
     payment_option: PaymentOption | None = None
+    payment_data: PaymentData | None = None
     delivery_provider_data: DeliveryProviderData | None = None
     phone: str = field(repr=False, default="")
 

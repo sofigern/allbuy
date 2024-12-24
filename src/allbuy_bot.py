@@ -5,10 +5,8 @@ from dataclasses import asdict
 import flatdict
 
 import src.exceptions as e
-from src.models.delivery_status import DeliveryStatuses
 from src.models.order import Order
 from src.models.order_status import OrderStatuses
-from src.models.payment_option import PaymentOptions
 
 from src.prom.client import PromAPIClient
 from src.prom.exceptions import GeneratingDeclarationException, NotAllowedWarehouseException
@@ -52,6 +50,7 @@ class AllBuyBot:
         date_to = None
         # while processing:
         orders = await self.client.get_orders(status=OrderStatuses.RECEIVED.value, date_to=date_to)
+
             # if not orders:
             #     processing = False
             #     break
@@ -70,14 +69,12 @@ class AllBuyBot:
                 continue
 
             processed_paid_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
-            if (
-                str(order.id) not in input_orders and
-                str(order.id) in self.paid_orders
-            ):
-                processed_paid_orders[str(order.id)]["ts"] = self.paid_orders[str(order.id)]["ts"]
-                continue
+            initial = str(order.id) not in self.paid_orders
 
-            order = await self.safe_refresh_order(order)
+            if not initial:
+                processed_paid_orders[str(order.id)]["ts"] = self.paid_orders[str(order.id)]["ts"]
+
+            order = await self.safe_refresh_order(order, initial=initial)
             if o := processed_paid_orders[str(order.id)]:
                 o["ts"] = datetime.datetime.now().timestamp()
 
@@ -97,17 +94,13 @@ class AllBuyBot:
             processed_pending_orders[str(order.id)] = (
                 flatdict.FlatDict(asdict(order), delimiter=".")
             )
-
-            if (
-                str(order.id) not in input_orders and
-                str(order.id) in self.pending_orders
-            ):
+            initial = str(order.id) not in self.pending_orders
+            if not initial:
                 processed_pending_orders[str(order.id)]["ts"] = (
                     self.pending_orders[str(order.id)]["ts"]
                 )
-                continue
 
-            order = await self.safe_refresh_order(order)
+            order = await self.safe_refresh_order(order, initial=initial)
             if o := processed_pending_orders[str(order.id)]:
                 o["ts"] = datetime.datetime.now().timestamp()
 
@@ -116,9 +109,9 @@ class AllBuyBot:
             if k not in self.retry_orders
         }
 
-    async def safe_refresh_order(self, order: Order):
+    async def safe_refresh_order(self, order: Order, initial: bool = False) -> Order:
         try:
-            order = await self.refresh_order(order)
+            order = await self.refresh_order(order, initial=initial)
         except (
             e.NotAllowedOrderStatusError,
             e.DeliveryProviderNotAllowedError,
@@ -127,16 +120,16 @@ class AllBuyBot:
             e.ReadyForDeliveryError,
         ) as exc:
             logger.info("Sending message to the chat:\n%s", exc)
-            if self.messenger:
+            if self.messenger and initial:
                 await self.messenger.send(str(exc))
         except e.DeliveryProviderError as exc:
             logger.info("Sending message to the chat:\n%s", exc)
-            if self.messenger:
+            if self.messenger and initial:
                 await self.messenger.send(str(exc), notify=[self.admin_phone])
         except e.GenerationDeclarationError as exc:
             self.retry_orders.add(str(order.id))
             logger.info("Sending message to the chat:\n%s", exc)
-            if self.messenger:
+            if self.messenger and initial:
                 await self.messenger.send(str(exc))
         except e.ModifiedDateIsTooOldError as exc:
             logger.info("Ignoring too old orders:\n%s", exc)
@@ -145,39 +138,12 @@ class AllBuyBot:
 
         return order
 
-    async def refresh_order(self, order: Order) -> Order:
-        
-        if (   
-            not order.delivery_provider_data or
-            order.delivery_provider_data.unified_status not in [
-                DeliveryStatuses.RETURNED.value.name,
-                DeliveryStatuses.REJECTED.value.name,
-            ]
-        ):
-            if (
-                order.status != OrderStatuses.RECEIVED.value and
-                order.age > datetime.timedelta(days=7)
-            ):
-                raise e.ModifiedDateIsTooOldError(order)
-
-        if (
-            order.status == OrderStatuses.PENDING.value and
-            (
-                order.payment_option in [
-                    PaymentOptions.PROM.value,
-                    PaymentOptions.PARTS.value,
-                ]
-            )
-        ):
-            raise e.IncompletePaymentError(order)
-
-
-
+    async def refresh_order(self, order: Order, initial: bool = False) -> Order:
         logger.info("Refreshing order %s", order)
 
         manager = self.director.assign(order)
         try:
-            order = await manager.process_order(order)
+            order = await manager.process_order(order, initial=initial)
         except GeneratingDeclarationException as exc:
             logger.exception("Error while generating declaration for order")
             raise e.GenerationDeclarationError(order) from exc
