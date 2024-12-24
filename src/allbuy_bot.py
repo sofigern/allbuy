@@ -56,20 +56,28 @@ class AllBuyBot:
             #     break
 
         for order in orders:
-            if input_orders and str(order.id) not in input_orders:
-                continue
+            initial = False
+            if input_orders: 
+                if str(order.id) not in input_orders:
+                    continue
+                else:
+                    initial = True
             # date_to = order.datetime_created.strftime("%Y-%m-%dT%H:%M:%S")
-            await self.safe_refresh_order(order)
+            await self.safe_refresh_order(order, initial=initial)
 
         orders = await self.client.get_orders(status=OrderStatuses.PAID.value)
         processed_paid_orders = {}
         self.retry_orders = set()
         for order in orders:
-            if input_orders and str(order.id) not in input_orders:
-                continue
+            initial = str(order.id) not in self.paid_orders
+
+            if input_orders: 
+                if str(order.id) not in input_orders:
+                    continue
+                else:
+                    initial = True
 
             processed_paid_orders[str(order.id)] = flatdict.FlatDict(asdict(order), delimiter=".")
-            initial = str(order.id) not in self.paid_orders
 
             if not initial:
                 processed_paid_orders[str(order.id)]["ts"] = self.paid_orders[str(order.id)]["ts"]
@@ -88,13 +96,18 @@ class AllBuyBot:
         orders = await self.client.get_orders(status=OrderStatuses.PENDING.value)
 
         for order in orders:
-            if input_orders and str(order.id) not in input_orders:
-                continue
+            initial = str(order.id) not in self.pending_orders
+
+            if input_orders:
+                if str(order.id) not in input_orders:
+                    continue
+                else:
+                    initial = True
 
             processed_pending_orders[str(order.id)] = (
                 flatdict.FlatDict(asdict(order), delimiter=".")
             )
-            initial = str(order.id) not in self.pending_orders
+
             if not initial:
                 processed_pending_orders[str(order.id)]["ts"] = (
                     self.pending_orders[str(order.id)]["ts"]

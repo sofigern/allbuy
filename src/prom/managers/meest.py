@@ -38,10 +38,7 @@ class MeestManager(DummyManager):
 
         delivery = None
         delivery_info = await self.scrape_client.generate_declaration(order)
-
-        if delivery_info.get("status") == "error":
-            raise NotAllowedWarehouseException(delivery_info["message"])
-        delivery = Delivery.from_meest_kwargs(**delivery_info["fields"])
+        delivery = Delivery.from_meest_kwargs(**delivery_info)
 
         order = await self.receive_order(order)
 

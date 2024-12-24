@@ -37,7 +37,7 @@ class MeestScraperClient(BaseScraperClient):
         init_data_order: dict,
     ):
         order_data = init_data_order["orderData"]
-        delivery_options = order_data["delivery_options"]
+        delivery_options = init_data_order["delivery_options"]
 
         try:
             request = {
@@ -57,7 +57,7 @@ class MeestScraperClient(BaseScraperClient):
                 "city_name": order_data["cityName"],
                 "city_doc_id": order_data["cityDocId"],
 
-                "delivery_type": init_data_order["deliveryType"],
+                "delivery_type": order_data["deliveryType"],
 
                 "branch_ref": order_data["branchRef"],
                 "branch_name": order_data["branchName"],
