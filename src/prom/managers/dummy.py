@@ -14,6 +14,7 @@ from src.models.delivery_status import DeliveryStatuses
 from src.models.order import Order
 from src.models.order_status import OrderStatuses
 from src.models.payment_option import PaymentOptions
+from src.models.payment_status import PaymentStatuses
 from src.prom.client import PromAPIClient
 from src.prom.remote.base import BaseScraperClient
 from src.prom.managers.imanager import IManager
@@ -98,6 +99,7 @@ class DummyManager(IManager):
 
     async def cancellation_hook(self, order: Order) -> Order:
         logger.info("Checking if order %s can be canceled", order)
+
         if (
             order.age > datetime.timedelta(days=60) and
             order.delivery_provider_data and
@@ -110,6 +112,21 @@ class DummyManager(IManager):
                 order,
                 cancellation_reason="another",
                 cancellation_text=DeliveryStatuses.get(status).value.title
+            )
+            await self.notify(order)
+            return order
+        
+        if (
+            order.age > datetime.timedelta(days=60) and
+            order.payment_data and
+            (status := order.payment_data.status) in [
+                PaymentStatuses.REFUNDED.value,
+            ]
+        ):
+            order = await self.cancel_order(
+                order,
+                cancellation_reason="another",
+                cancellation_text=status.title
             )
             await self.notify(order)
             return order
