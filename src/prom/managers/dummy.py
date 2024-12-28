@@ -115,7 +115,7 @@ class DummyManager(IManager):
             )
             await self.notify(order)
             return order
-        
+
         if (
             order.age > datetime.timedelta(days=60) and
             order.payment_data and
