@@ -43,6 +43,22 @@ class DeliveryStatuses(Enum):
         name="returned",
     )
 
+    INITIAL = DeliveryStatus(
+        id=None,
+        title="Початковий",
+        name="initial",
+    )
+    ON_THE_WAY = DeliveryStatus(
+        id=None,
+        title="На шляху до одержувача",
+        name="on_the_way",
+    )
+    IN_WAREHOUSE = DeliveryStatus(
+        id=None,
+        title="Готово до видачі",
+        name="in_warehouse",
+    )
+
     @classmethod
     def get(cls, key):
         return cls[key.upper()]
