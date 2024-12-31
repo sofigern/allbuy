@@ -60,28 +60,30 @@ def write_orders(client: gspread.client.Client, name: str, orders: dict):
     for h in headers:
         is_empty_field = True
         for order in orders.values():
-            val = order.get(h)
-            if not isinstance(val, FlatDict) and (val is not None) and (val != ""):
-                is_empty_field = False
-                break
+            if order:
+                val = order.get(h)
+                if not isinstance(val, FlatDict) and (val is not None) and (val != ""):
+                    is_empty_field = False
+                    break
         if is_empty_field:
             headers.remove(h)
 
     res = []
 
     for order in orders.values():
-        row = []
-        for h in headers:
-            try:
-                val = order.get(h)
-            except TypeError:
-                val = None
-            else:
-                if isinstance(val, FlatDict):
+        if order:
+            row = []
+            for h in headers:
+                try:
+                    val = order.get(h)
+                except TypeError:
                     val = None
-            finally:
-                row.append(val)
-        res.append(row)
+                else:
+                    if isinstance(val, FlatDict):
+                        val = None
+                finally:
+                    row.append(val)
+            res.append(row)
 
     sheet.clear()
     sheet.append_row(headers)
