@@ -43,6 +43,17 @@ class DeliveryStatuses(Enum):
         name="returned",
     )
 
+    RETURN = DeliveryStatus(
+        id=None,
+        title="Повернення",
+        name="return",
+    )
+    UTILIZATION = DeliveryStatus(
+        id=None,
+        title="Відправлено на утилізацію",
+        name="utilization",
+    )
+
     INITIAL = DeliveryStatus(
         id=None,
         title="Початковий",
