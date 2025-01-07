@@ -57,16 +57,16 @@ def write_orders(client: gspread.client.Client, name: str, orders: dict):
         headers.update(order.keys())
     headers = ["id"] + sorted([h for h in headers if h != "id"])
 
-    for h in headers:
-        is_empty_field = True
-        for order in orders.values():
-            if order:
-                val = order.get(h)
-                if not isinstance(val, FlatDict) and (val is not None) and (val != ""):
-                    is_empty_field = False
-                    break
-        if is_empty_field:
-            headers.remove(h)
+    # for h in headers:
+    #     is_empty_field = True
+    #     for order in orders.values():
+    #         if order:
+    #             val = order.get(h)
+    #             if not isinstance(val, FlatDict) and (val is not None) and (val != ""):
+    #                 is_empty_field = False
+    #                 break
+    #     if is_empty_field:
+    #         headers.remove(h)
 
     res = []
 
