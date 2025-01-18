@@ -40,7 +40,9 @@ class NovaPoshtaManager(DummyManager):
         delivery_info = await self.scrape_client.generate_declaration(order)
 
         if delivery_info.get("status") == "error":
-            raise NotAllowedWarehouseException(delivery_info["message"])
+            raise NotAllowedWarehouseException(
+                delivery_info.get("message") or str(delivery_info.get("errors"))
+            )
         delivery = Delivery.from_np_kwargs(**delivery_info["fields"])
 
         order = await self.receive_order(order)
