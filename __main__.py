@@ -11,8 +11,7 @@ from flatdict import FlatDict
 
 import gspread
 import google.auth
-from google.cloud import run_v2, secretmanager_v1, firestore
-# from oauth2client.service_account import ServiceAccountCredentials
+from google.cloud import run_v2, secretmanager_v1
 
 from src.signal.bot import SignalBot
 from src.prom.client import PromAPIClient
@@ -128,6 +127,11 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        "--signal-local", help="Signal local service",
+        default=os.getenv("SIGNAL_LOCAL")
+    )
+
+    parser.add_argument(
         "--prom-token", help="Prom API token",
         default=os.getenv("PROM_TOKEN")
     )
@@ -162,29 +166,46 @@ def parse_arguments():
 async def main():
     parsed_data = parse_arguments()
     creds, project_id = google.auth.default(scopes=scope)
-
-    g_service_client = run_v2.ServicesClient()
-    service = g_service_client.get_service(
-        name=g_service_client.service_path(
-            project_id,
-            parsed_data.signal_api_region,
-            parsed_data.signal_api_cli,
-        )
-    )
-    service_url = service.urls[0]
-    signal_service = urllib.parse.urlparse(service_url).netloc
-
+    
+    signal_local = parsed_data.signal_local
+    use_local_signal = False
     signal_bot = None
-    if not parsed_data.signal_disallowed:
-        if not parsed_data.signal_phone or not parsed_data.signal_group:
-            raise ValueError("Signal Phone number and group ID are required.")
 
+    if signal_local:
         signal_bot = SignalBot(**{
-            "signal_service": signal_service,
+            "signal_service": signal_local,
             "phone_number": parsed_data.signal_phone,
             "group_id": parsed_data.signal_group,
             "force": parsed_data.force
         })
+        use_local_signal = await signal_bot.health()
+        if not use_local_signal:
+            logger.warning("Local signal service is not available. Using the default service.")
+        else:
+            logger.info("Local signal service is available.")
+
+    if not use_local_signal:
+        g_service_client = run_v2.ServicesClient()
+        service = g_service_client.get_service(
+            name=g_service_client.service_path(
+                project_id,
+                parsed_data.signal_api_region,
+                parsed_data.signal_api_cli,
+            )
+        )
+        service_url = service.urls[0]
+        signal_service = urllib.parse.urlparse(service_url).netloc
+
+        if not parsed_data.signal_disallowed:
+            if not parsed_data.signal_phone or not parsed_data.signal_group:
+                raise ValueError("Signal Phone number and group ID are required.")
+
+            signal_bot = SignalBot(**{
+                "signal_service": signal_service,
+                "phone_number": parsed_data.signal_phone,
+                "group_id": parsed_data.signal_group,
+                "force": parsed_data.force
+            })
 
     prom_client = PromAPIClient(
         parsed_data.prom_token,
