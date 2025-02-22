@@ -23,10 +23,13 @@ class SignalBot:
             )
 
     async def health(self):
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"http://{self.service}/v1/health", ssl=False) as resp:
-                if resp.status == 204:
-                    return True
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://{self.service}/v1/health", ssl=False, timeout=10) as resp:
+                    if resp.status == 204:
+                        return True
+        except aiohttp.ClientTimeout:
+            return False
         return False
     
     async def send(self, message: str, debug: bool = False, notify: list[str] = None):
