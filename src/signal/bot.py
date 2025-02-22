@@ -31,6 +31,8 @@ class SignalBot:
                         return True
         except asyncio.TimeoutError:
             return False
+        except aiohttp.ClientConnectionError:
+            return False
         return False
     
     async def send(self, message: str, debug: bool = False, notify: list[str] = None):
