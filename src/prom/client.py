@@ -6,6 +6,7 @@ import dacite
 from src.models.order import Order
 from src.models.order_status import OrderStatus, OrderStatuses
 from src.models.payment_status import PaymentStatus, PaymentStatuses
+from src.models.product import Product
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,46 @@ class PromAPIClient:
     @classmethod
     def order_url(cls, order_id: int):
         return f"https://my.prom.ua/cms/order/edit/{order_id}"
+
+    async def get_products(self) -> list[Product]:
+        products = []
+        has_more = True
+        while has_more:
+            params = {"limit": 100}
+            if products:
+                params["last_id"] = products[-1].id
+
+            async with self.client.get("products/list", params=params) as resp:
+                response_json = await resp.json()
+
+            if not response_json.get("products"):
+                has_more = False
+            else:
+                products += [
+                    dacite.from_dict(Product, product_data)
+                    for product_data in response_json.get("products")
+                ]
+
+        return products
+
+    async def edit_products(self, products: list[Product]) -> dict:
+        logger.info("Updating products %s", products)
+
+        body = [
+            {
+                "id": product.id,
+                "price": product.price,
+                "presence": product.presence,
+                "in_stock": product.in_stock,
+            }
+            for product in products
+        ]
+
+        async with self.client.post(
+            "products/edit",
+            json=body,
+        ) as resp:
+            return await resp.json()
 
     async def get_orders(
         self,

@@ -183,7 +183,7 @@ async def main():
             logger.warning("Local signal service is not available. Using the default service.")
         else:
             logger.info("Local signal service is available.")
-
+    
     if not use_local_signal:
         g_service_client = run_v2.ServicesClient()
         service = g_service_client.get_service(
