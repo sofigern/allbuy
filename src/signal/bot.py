@@ -1,3 +1,4 @@
+import asyncio
 import aiohttp
 
 
@@ -28,7 +29,7 @@ class SignalBot:
                 async with session.get(f"http://{self.service}/v1/health", ssl=False, timeout=10) as resp:
                     if resp.status == 204:
                         return True
-        except aiohttp.ClientTimeout:
+        except asyncio.TimeoutError:
             return False
         return False
     
