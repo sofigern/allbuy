@@ -9,62 +9,11 @@ from dotenv import load_dotenv
 import google.auth
 from google.cloud import secretmanager_v1
 import gspread
-import xml.etree.ElementTree as ET
 
-from src.models.product import Product
 from src.prom.client import PromAPIClient
 from src.stock.stock_manager import StockManager
 from src.stock.intertool_manager import IntertoolManager
 
-
-# # URL of the XML file
-# url = "https://s3.intertool.ua/b2c/files/clients/xml/ua/stock/xml_output.xml"
-
-# # Send a GET request to the URL
-# response = requests.get(url)
-
-# # Check if the request was successful
-# if response.status_code == 200:
-#     # Write the content to a file
-#     with open("xml_output.xml", "wb") as file:
-#         file.write(response.content)
-#     print("File downloaded successfully!")
-# else:
-#     print(f"Failed to download file. Status code: {response.status_code}")
-
-with open("xml_output.xml", "r") as file:
-    data = file.read()
-
-root = ET.fromstring(data)
-
-shop_name = root.find('.//shop/name').text
-shop_company = root.find('.//shop/company').text
-shop_url = root.find('.//shop/url').text
-shop_email = root.find('.//shop/email').text
-
-
-# Extract categories
-categories = root.findall('.//categories/category')
-# print("\nCategories:")
-# for category in categories:
-#     print(f"- {category.text} (ID: {category.attrib['id']})")
-
-
-offers = root.findall('.//offers/offer')
-# breakpoint()
-pass
-# print("\nOffers:")
-# for offer in offers:
-#     offer_id = offer.attrib['id']
-#     offer_url = offer.find('url').text
-#     offer_price = offer.find('price').text
-#     offer_currency_id = offer.find('currencyId').text
-#     offer_name = offer.find('name').text
-    
-#     print(f"Offer ID: {offer_id}")
-#     print(f"  URL: {offer_url}")
-#     print(f"  Price: {offer_price} {offer_currency_id}")
-#     print(f"  Name: {offer_name}")
 
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
