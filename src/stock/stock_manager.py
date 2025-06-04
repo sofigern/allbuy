@@ -22,7 +22,7 @@ class StockManager:
                 Product(
                     sku=row[0],
                     name=row[1],
-                    quantity_in_stock=int(row[2]),
+                    quantity_in_stock=int(row[2] or 0),
                     price=float(row[6].replace(",", ".")),
                 )
                 for row in data[1:]
