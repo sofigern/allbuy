@@ -6,3 +6,4 @@ app.yaml
 .gcloudignore
 all-buy-tools-*
 *.xml
+.DS_Store

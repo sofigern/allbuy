@@ -68,13 +68,7 @@ async def main(args):
             if product.presence == "available":
                 product = replace(product, presence="not_available", in_stock=False)
         
-        if (
-            (
-                product.price >= prom_product.price
-                and product is not prom_product
-            ) or
-            (product.presence != prom_product.presence)
-        ):
+        if product is not prom_product:
             if not (product.presence == prom_product.presence == "not_available"):
                 update_products.append((prom_product, product))
 
