@@ -19,6 +19,65 @@ scope = [
 ]
 
 
+def normalize_sku(sku: str | None) -> str | None:
+    """SKUs arrive from three hand-touched sources; whitespace must not
+    break matching (the stock sheet had entries like "TC-7635\\n\\n")."""
+    return sku.strip() if sku else sku
+
+
+def plan_updates(prom_products, stock_products, intertool_products):
+    """Decide presence for every prom product.
+
+    A product counts as available iff its quantity on the owner's stock
+    sheet is > 0 OR the intertool feed marks it available — the sheet is
+    authoritative for items intertool has delisted from its b2c feed.
+
+    Returns (update_products, unknown_products) where update_products is
+    a list of (old_product, new_product) pairs.
+    """
+    i_products = {normalize_sku(p.sku): p for p in intertool_products}
+
+    known_skus = {normalize_sku(p.sku) for p in stock_products}
+    known_skus |= {normalize_sku(p.sku) for p in intertool_products}
+
+    available_skus = {
+        normalize_sku(p.sku) for p in stock_products if p.quantity_in_stock > 0
+    }
+    available_skus |= {
+        normalize_sku(p.sku) for p in intertool_products if p.in_stock
+    }
+
+    update_products = []
+    unknown_products = []
+
+    for prom_product in prom_products:
+        product = prom_product
+        sku = normalize_sku(product.sku)
+
+        if sku not in known_skus:
+            unknown_products.append(product)
+            continue
+
+        if intertool_product := i_products.get(sku):
+            # Kept as-is pending the owner's answer on whether the prom
+            # price should be raised to a higher intertool price.
+            if intertool_product.price >= product.price:
+                product = replace(product, price=intertool_product.price)
+
+        if sku in available_skus:
+            if product.presence == "not_available":
+                product = replace(product, presence="available", in_stock=True)
+        else:
+            if product.presence == "available":
+                product = replace(product, presence="not_available", in_stock=False)
+
+        if product is not prom_product:
+            if not (product.presence == prom_product.presence == "not_available"):
+                update_products.append((prom_product, product))
+
+    return update_products, unknown_products
+
+
 async def main(args):
     creds, project_id = google.auth.default(scopes=scope)
     gspread_client = gspread.client.Client(creds)
@@ -35,43 +94,10 @@ async def main(args):
 
     intertool_manager = IntertoolManager()
     intertool_products = intertool_manager.get_products(from_file=False)
-    i_products = {p.sku: p for p in intertool_products}
 
-    available_on_stock = [p.sku for p in stock_products if p.quantity_in_stock > 0]
-    not_available_on_stock = [p.sku for p in stock_products if p.quantity_in_stock == 0]
-
-    available_on_intertool = [p.sku for p in intertool_products if p.in_stock]
-    not_available_on_intertool = [p.sku for p in intertool_products if not p.in_stock]
-
-    update_products = []
-    unknown_products = []
-
-    for prom_product in prom_products:
-        product = prom_product
-
-        if product.sku not in (
-            available_on_intertool
-            + not_available_on_intertool
-            + available_on_stock
-            + not_available_on_stock
-        ):
-            unknown_products.append(product)
-            continue
-
-        if intertool_product := i_products.get(prom_product.sku):
-            if intertool_product.price >= product.price:
-                product = replace(product, price=intertool_product.price)
-
-        if product.sku in (available_on_stock + available_on_intertool):
-            if product.presence == "not_available":
-                product = replace(product, presence="available", in_stock=True)
-        else:
-            if product.presence == "available":
-                product = replace(product, presence="not_available", in_stock=False)
-
-        if product is not prom_product:
-            if not (product.presence == prom_product.presence == "not_available"):
-                update_products.append((prom_product, product))
+    update_products, unknown_products = plan_updates(
+        prom_products, stock_products, intertool_products
+    )
 
     spreadsheet = gspread_client.open("Склад Intertool")
 
