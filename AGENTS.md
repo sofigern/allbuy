@@ -17,3 +17,4 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - The job's only production write is the report worksheets ("… Оновлення", "Невідомі") in the same spreadsheet; `edit_products` (prom mutation) is intentionally commented out.
   For local validation, call the pure `plan_updates` instead of `main()` so nothing is written.
 - Tests: `pytest` from the repo root (`pytest.ini` sets `pythonpath = .`).
+  pytest is a dev-only tool — it is not in `requirements.txt` (runtime deps only) and must be installed separately.
