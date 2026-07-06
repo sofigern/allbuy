@@ -8,7 +8,10 @@ HEADER = ["Артикул", "Товар", "Кількість", "Од.", "МРР
 def test_parse_rows_strips_stray_whitespace_from_sku_and_name():
     data = [
         HEADER,
-        ["TC-7635\n\n", "Хомут пластиковий\n\n", "35", "шт", "145,00", "159,00", "115,20", "4032,00"],
+        [
+            "TC-7635\n\n", "Хомут пластиковий\n\n", "35", "шт",
+            "145,00", "159,00", "115,20", "4032,00",
+        ],
     ]
     [product] = StockManager.parse_rows(data)
     assert product.sku == "TC-7635"

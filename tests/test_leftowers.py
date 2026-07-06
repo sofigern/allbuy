@@ -1,6 +1,5 @@
-from src.models.product import Product
-
 from leftowers import normalize_sku, plan_updates
+from src.models.product import Product
 
 
 def prom(sku, presence="available", price=100.0, id=1):

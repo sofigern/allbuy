@@ -9,6 +9,7 @@ import google.auth
 import gspread
 from dotenv import load_dotenv
 from google.cloud import secretmanager_v1
+
 from src.prom.client import PromAPIClient
 from src.stock.intertool_manager import IntertoolManager
 from src.stock.stock_manager import StockManager

@@ -1,6 +1,6 @@
-import requests
-
 import xml.etree.ElementTree as ET
+
+import requests
 
 from src.models.product import Product
 
