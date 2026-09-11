@@ -48,12 +48,26 @@ class MailSender:
             sender=os.getenv("SMTP_FROM", user),
         )
 
-    def build(self, to: str, subject: str, body: str) -> EmailMessage:
+    def build(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        attachment: tuple[str, bytes] | None = None,
+    ) -> EmailMessage:
         message = EmailMessage()
         message["From"] = self.sender
         message["To"] = to
         message["Subject"] = subject
         message.set_content(body)
+        if attachment is not None:
+            filename, content = attachment
+            message.add_attachment(
+                content,
+                maintype="application",
+                subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename=filename,
+            )
         return message
 
     def send(self, message: EmailMessage) -> None:

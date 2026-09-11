@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 import google.auth
 import gspread
+import openpyxl
 from dotenv import load_dotenv
 from google.cloud import secretmanager_v1
 
@@ -162,7 +163,12 @@ def build_report(orders, stock_products: list[Product]) -> list[ReportRow]:
 
 
 def render_email(rows: list[ReportRow], start, end) -> tuple[str, str]:
-    """Return the (subject, body) of the report mail."""
+    """Return the (subject, body) of the report mail.
+
+    The full table travels as the .xlsx attachment (see ``build_workbook``);
+    a phone notification shows this body, not the attachment, so it has to
+    stand on its own: window, how many SKUs, how many are short.
+    """
     short = [row for row in rows if row.status != IN_STOCK]
     window = (
         f"{start.strftime('%d.%m.%Y %H:%M')} — {end.strftime('%d.%m.%Y %H:%M')}"
@@ -172,29 +178,30 @@ def render_email(rows: list[ReportRow], start, end) -> tuple[str, str]:
         f"{len(rows)} позицій, {len(short)} під питанням"
     )
 
-    cells = [row.as_row(MAX_NAME_WIDTH) for row in rows]
-    widths = [
-        max([len(HEADER[i])] + [len(str(cell[i])) for cell in cells])
-        for i in range(len(HEADER))
-    ]
-
-    def line(cells):
-        return "  ".join(
-            str(cell).ljust(widths[i]) for i, cell in enumerate(cells)
-        ).rstrip()
-
     body = [
         f"Період: {window} (Київ)",
         f"Позицій: {len(rows)}. Потребують уваги: {len(short)}.",
-        "",
-        line(HEADER),
-        line(["-" * width for width in widths]),
     ]
-    body += [line(cell) for cell in cells]
-    if not rows:
+    if rows:
+        body.append("Повний список — у прикріпленому файлі.")
+    else:
         body.append("За цей період замовлень не було.")
 
     return subject, "\n".join(body)
+
+
+def build_workbook(rows: list[ReportRow]) -> bytes:
+    """The report as an .xlsx attachment: same header and rows as the tab
+    ``StockManager.create_report`` writes, untruncated names included."""
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(HEADER)
+    for row in rows:
+        sheet.append(row.as_row())
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
 
 
 async def collect_rows(prom_client, stock_manager, start, end):
@@ -226,17 +233,22 @@ async def main(args):
 
     subject, body = render_email(rows, start, end)
     title = end.strftime("%Y-%m-%d %H-%M") + " Замовлення-склад"
+    attachment_name = f"{title}.xlsx"
 
     if not args.apply:
         print(f"[dry-run] worksheet: {title}")
         print(f"[dry-run] to: {args.to}")
         print(f"[dry-run] subject: {subject}")
+        print(f"[dry-run] attachment: {attachment_name}")
         print(body)
         return
 
     stock_manager.create_report(title, HEADER, [row.as_row() for row in rows])
     sender = MailSender.from_env()
-    sender.send(sender.build(args.to, subject, body))
+    message = sender.build(
+        args.to, subject, body, attachment=(attachment_name, build_workbook(rows))
+    )
+    sender.send(message)
 
 
 if __name__ == "__main__":
