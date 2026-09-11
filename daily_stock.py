@@ -225,7 +225,7 @@ async def main(args):
     rows = await collect_rows(prom_client, stock_manager, start, end)
 
     subject, body = render_email(rows, start, end)
-    title = end.strftime("%Y-%m-%d %H:%M") + " Замовлення-склад"
+    title = end.strftime("%Y-%m-%d %H-%M") + " Замовлення-склад"
 
     if not args.apply:
         print(f"[dry-run] worksheet: {title}")
