@@ -241,16 +241,3 @@ def test_float_quantities_do_not_render_as_decimals():
         stock_products=[stock("HT-6001", 5)],
     )
     assert row.as_row()[2] == "2"
-
-
-def test_long_product_names_are_trimmed_only_for_the_mail():
-    long_name = "Професійний набір інструментів " * 5
-    [row] = build_report(
-        orders=[FakeOrder(1, "2026-09-10T10:00:00+03:00", [
-            line("ET-7176", 1, name=long_name),
-        ])],
-        stock_products=[stock("ET-7176", 1)],
-    )
-    assert row.as_row()[1] == long_name          # worksheet keeps it whole
-    assert len(row.as_row(58)[1]) == 58          # the mail column does not
-    assert row.as_row(58)[1].endswith("…")

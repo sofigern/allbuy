@@ -64,10 +64,6 @@ IN_STOCK = "Так"
 NOT_ENOUGH = "Ні"
 UNKNOWN = "Немає в таблиці"
 
-#: Product names run past 100 characters; the mail is read in a monospace
-#: column, so they are trimmed there. The worksheet keeps them in full.
-MAX_NAME_WIDTH = 58
-
 
 def format_quantity(value: float | int) -> str:
     """Prom sends quantities as floats; 1.0 should not read as "1.0"."""
@@ -94,13 +90,10 @@ class ReportRow:
             return UNKNOWN
         return IN_STOCK if self.in_stock >= self.ordered else NOT_ENOUGH
 
-    def as_row(self, name_width: int | None = None) -> list:
-        name = self.name
-        if name_width and len(name) > name_width:
-            name = name[: name_width - 1] + "…"
+    def as_row(self) -> list:
         return [
             self.sku,
-            name,
+            self.name,
             format_quantity(self.ordered),
             "—" if self.in_stock is None else self.in_stock,
             self.status,
