@@ -76,9 +76,27 @@ processing orders, and the only thing that says so is
 
     logger.error("COOKIES_EXPIRED: ...")
 
-in `__main__.py`. A Cloud Logging alerting policy matches that `COOKIES_EXPIRED`
-prefix and emails the owner. **Changing the string silently disables the alert**
-- the job keeps exiting cleanly and nobody is told the shop has stopped.
+in `__main__.py`. A Cloud Logging alerting policy in GCP project `all-buy-tools`
+(`projects/all-buy-tools/alertPolicies/15861306608002817826`, condition filters
+on `resource.type="cloud_run_job" AND resource.labels.job_name="shop-orders-refresh"
+AND textPayload:"COOKIES_EXPIRED"`) matches that prefix and emails the owner
+through notification channel `projects/all-buy-tools/notificationChannels/8444333370555292492`
+(sofigenr@gmail.com). Verified live by writing a matching test log entry with
+`gcloud logging write` and confirming it matched the policy filter.
+**Changing the string silently disables the alert** - the job keeps exiting
+cleanly and nobody is told the shop has stopped. There is no API to list fired
+incidents for a policy; the only way to re-verify delivery is a test log write
+plus checking the inbox by hand.
+
+The six `SIGNAL_*`/`ADMIN_PHONE` keys are gone from the `ALLBUYBOTCONF` secret
+as of version 16 (2026-09-11, added as a new version off v15 once PR #5's image
+had already run cleanly once); it now holds only `COOKIES`, `PROM_TOKEN`,
+`REPORT_EMAIL_TO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
+`SMTP_FROM`. The `signal-cli-rest-api` Cloud Run service (europe-central2) is
+the last piece: nothing calls it any more, and it is scheduled for deletion
+once the alert above is confirmed to actually deliver email - not just match
+the log filter - since that alert is the only replacement for what Signal used
+to notify.
 
 ## Scheduling (all of it lives in GCP, not in this repo)
 
