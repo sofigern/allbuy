@@ -3,8 +3,10 @@
 Prom reports order times in two different shapes, and mixing them up is the
 failure mode this module exists to prevent:
 
-* the public API returns ``date_created`` in ISO-8601 **with an offset**
-  (the schema's own example is ``2015-04-28T12:50:34.588791+00:00``);
+* the public API returns ``date_created`` in ISO-8601 **with an offset**,
+  and for this account that offset is UTC - a live ``/orders/list`` call on
+  2026-09-11 returned ``2026-09-11T15:20:57.225474+00:00`` for an order
+  placed at 18:20 Kyiv;
 * the seller cabinet renders the same instant as a **naive Kyiv wall clock**.
 
 Every timestamp is therefore normalised to an aware ``Europe/Kyiv`` datetime
