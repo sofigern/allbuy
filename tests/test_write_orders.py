@@ -97,3 +97,21 @@ def test_every_written_cell_holds_a_single_value(sheet):
     for row in sheet.rows:
         for value in row:
             assert value is None or isinstance(value, (str, int, float, bool))
+
+
+def test_blanks_a_branch_an_order_left_empty_elsewhere(sheet):
+    """One order's empty field names a column that is a branch in another.
+
+    ``flatdict`` reports ``payment_data`` as a leaf where it is ``None`` and as
+    ``payment_data.type`` where it is filled, so both become columns.
+    """
+    orders = {
+        "1": flatdict.FlatDict({"id": 1, "payment_data": {"type": "card"}}, delimiter="."),
+        "2": flatdict.FlatDict({"id": 2, "payment_data": None}, delimiter="."),
+    }
+
+    write_orders(FakeClient(sheet), "Pending", orders)
+
+    for row in sheet.rows:
+        for value in row:
+            assert value is None or isinstance(value, (str, int, float, bool))
