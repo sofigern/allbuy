@@ -29,6 +29,34 @@ class StockManager:
     def get_products(self) -> list[Product]:
         return self.parse_rows(self.worksheet.get_all_values())
 
+    def create_report(
+        self,
+        title: str,
+        header: list[str],
+        rows: list[list],
+        index: int = 1,
+    ) -> None:
+        """Write ``rows`` to a brand new worksheet named ``title``."""
+        worksheet = self.spreadsheet.add_worksheet(
+            title, rows=max(len(rows) + 1, 1), cols=len(header), index=index
+        )
+        worksheet.append_row(header)
+        if rows:
+            worksheet.append_rows(rows)
+
+    def replace_report(
+        self,
+        title: str,
+        header: list[str],
+        rows: list[list],
+    ) -> None:
+        """Overwrite an existing worksheet named ``title`` in place."""
+        worksheet = self.spreadsheet.worksheet(title)
+        worksheet.clear()
+        worksheet.append_row(header)
+        if rows:
+            worksheet.append_rows(rows)
+
     @classmethod
     def parse_rows(cls, data: list[list[str]]) -> list[Product]:
         if not data:

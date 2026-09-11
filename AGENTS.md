@@ -18,3 +18,63 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   For local validation, call the pure `plan_updates` instead of `main()` so nothing is written.
 - Tests: `pytest` from the repo root (`pytest.ini` sets `pythonpath = .`).
   pytest is a dev-only tool — it is not in `requirements.txt` (runtime deps only) and must be installed separately.
+
+## Daily orders-vs-stock job (`daily_stock.py`)
+
+- Runs at 08:50 Kyiv and reports the window `[08:50 yesterday, 08:50 today)`.
+  The boundary is half-open so consecutive runs never drop or double-count an order landing on it.
+- Every SKU ordered in the window appears, whether short or not; `Вистачає` is a flag, not a filter.
+  An empty day says so in words, so a silent breakage does not look like a quiet day.
+- Three distinct states, and they must stay distinct: enough stock, not enough, and SKU absent from the sheet.
+  Stock `0` is *not* the same as absent — `0` means the sheet knows the item and has none.
+- **Timezones.** Prom's public API returns `date_created` **in UTC** — measured, not assumed: a live
+  `/orders/list` call on 2026-09-11 returned `2026-09-11T15:20:57.225474+00:00` for an order placed at
+  18:20 Kyiv. The seller cabinet renders the same instant as a naive Kyiv wall clock. `src/clock.to_kyiv` normalises both to aware Europe/Kyiv, and
+  `Order.datetime_created` / `Order.age` go through it. Before this, `Order` stripped the offset and
+  compared it against a local `datetime.now()`, so every age was out by exactly that 3 h offset.
+  Never compare a Prom timestamp to a naive `now()`.
+- `date_from` / `date_to` on `/orders/list` are documented without an offset, so how the server reads them
+  is not guaranteed. The job asks for a day either side (`WINDOW_MARGIN`) and cuts the exact boundary
+  itself on the aware timestamps Prom returns; the API window is only a prefilter. Requires
+  `PromAPIClient.get_orders(paginate=True)`, which walks `last_id`.
+- Volume, measured over the 365 days to 2026-09-11 (15 726 orders): an 08:50→08:50 window held a median
+  of 44 orders and never more than 72, with 64 distinct SKUs at the median and 134 at the most. One
+  100-order page covers it today, which is why paging exists rather than a larger limit.
+- `EXCLUDED_ORDER_STATUSES` is empty: the owner asked for *all* orders in the window, cancellations
+  included. Add `"cancelled"` there to change that; nothing else needs touching.
+- **Both outputs are off unless `--apply` is passed.** Without it the run prints the worksheet title and
+  the exact email body. The scheduled invocation must pass `--apply`.
+- SMTP settings come from the same `ALLBUYBOTCONF` secret as everything else:
+  `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASSWORD`, optional `SMTP_FROM`,
+  and `REPORT_EMAIL_TO` (defaults to the shop's Prom-registered address). There is deliberately no
+  local-credentials fallback.
+- Writing report tabs is `StockManager.create_report` / `replace_report`. `daily_stock.py` uses them;
+  `leftowers.py` still has its own inline `gspread` calls and is deliberately left alone, because the
+  owner wants the leftovers job untouched. Migrate it only when there is a reason to touch it anyway.
+
+- `quantity` on an order line is a **float** (`1.0`, confirmed on a live call), so it is rendered
+  through `format_quantity`; printing it raw puts "1.0" in the report.
+
+## Scheduling (all of it lives in GCP, not in this repo)
+
+`cloudbuild.yaml` only builds and pushes `gcr.io/all-buy-tools/my-image:latest`. What runs, when, is
+a pair of Cloud Run Jobs and Cloud Scheduler triggers in **`europe-central2`** of project
+**`all-buy-tools`**, all on that one image:
+
+| Cloud Run Job | args | Scheduler trigger | schedule | tz |
+|---|---|---|---|---|
+| `stock-leftovers` | `python leftowers.py` | `stock-leftovers-scheduler-trigger` | `30 11,19 * * *` | `Europe/Kiev` |
+| `shop-orders-refresh` | image default (`__main__.py`) | `shop-orders-refresh-scheduler-trigger` | `*/10 * * * *` | `Etc/UTC` |
+| — | — | `all-buy-bot-scheduler-trigger` | `*/10 * * * *` | `Etc/UTC` |
+
+Note the leftovers job runs **twice daily at 11:30 and 19:30 Kyiv**, not once in the morning.
+
+Each trigger is an HTTP POST to
+`https://europe-central2-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/all-buy-tools/jobs/<job>:run`.
+
+To change a job's time, edit only its own trigger — the schedules are independent:
+
+```
+gcloud scheduler jobs update http <trigger-name> \
+  --location=europe-central2 --schedule="50 8 * * *" --time-zone="Europe/Kiev"
+```

@@ -1,9 +1,11 @@
 import datetime
 from dataclasses import dataclass, field
 
+from src.clock import now_kyiv, to_kyiv
 from src.models.client import Client
 from src.models.delivery_provider import DeliveryProvider
 from src.models.delivery_provider_data import DeliveryProviderData
+from src.models.order_product import OrderProduct
 from src.models.order_status import OrderStatus
 from src.models.payment_option import PaymentOption
 from src.models.payment_data import PaymentData
@@ -19,6 +21,7 @@ class Order:
     delivery_address: str
     delivery_option: DeliveryProvider | None
     client: Client
+    products: list[OrderProduct] = field(default_factory=list)
     client_notes: str | None = None
     payment_option: PaymentOption | None = None
     payment_data: PaymentData | None = None
@@ -30,19 +33,17 @@ class Order:
 
     @property
     def datetime_created(self) -> datetime.datetime | None:
-        if self.date_created is None:
-            return None
-        return datetime.datetime.fromisoformat(self.date_created).replace(tzinfo=None)
+        # Aware Europe/Kyiv. Prom sends an offset here; dropping it made
+        # every age below wrong by that offset on a non-Kyiv host.
+        return to_kyiv(self.date_created)
 
     @property
     def datetime_modified(self) -> datetime.datetime | None:
-        if self.date_modified is None:
-            return None
-        return datetime.datetime.fromisoformat(self.date_modified).replace(tzinfo=None)
+        return to_kyiv(self.date_modified)
 
     @property
     def age(self) -> datetime.timedelta:
-        return datetime.datetime.now() - self.datetime_created
+        return now_kyiv() - self.datetime_created
 
     def __str__(self):
         return (
