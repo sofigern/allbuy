@@ -65,6 +65,7 @@ a pair of Cloud Run Jobs and Cloud Scheduler triggers in **`europe-central2`** o
 |---|---|---|---|---|
 | `stock-leftovers` | `python leftowers.py` | `stock-leftovers-scheduler-trigger` | `30 11,19 * * *` | `Europe/Kiev` |
 | `shop-orders-refresh` | image default (`__main__.py`) | `shop-orders-refresh-scheduler-trigger` | `*/10 * * * *` | `Etc/UTC` |
+| `daily-stock` | `python daily_stock.py --apply` | `daily-stock-scheduler-trigger` | `50 8 * * *` | `Europe/Kiev` |
 | — | — | `all-buy-bot-scheduler-trigger` | `*/10 * * * *` | `Etc/UTC` |
 
 Note the leftovers job runs **twice daily at 11:30 and 19:30 Kyiv**, not once in the morning.
