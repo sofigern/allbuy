@@ -84,14 +84,14 @@ through notification channel `projects/all-buy-tools/notificationChannels/844433
 (sofigenr@gmail.com). Verified live by writing a matching test log entry with
 `gcloud logging write` and confirming it matched the policy filter.
 **Changing the string silently disables the alert** - the job keeps exiting
-cleanly and nobody is told the shop has stopped. There is no API to list fired
-incidents for a policy, and the notification channel itself carries no
-verification status either way; the only way to re-verify delivery is a test
-log write (`gcloud logging write`, matching the filter above) plus checking
-sofigenr@gmail.com by hand. As of 2026-09-11 the filter match was verified live
-but actual email delivery was not - the owner chose to accept that risk rather
-than block on it, so treat the alert as unproven until someone has actually
-seen one land in that inbox.
+cleanly and nobody is told the shop has stopped. The notification channel is
+`verificationStatus: VERIFIED` as of 2026-09-11 (the owner completed GCP's
+email verification code flow), and a test log entry written after that
+verification matched the policy filter, confirming the log-match -> channel
+wiring end to end. There is still no API to list fired incidents for a policy;
+the only way to re-check that an email actually lands is a test log write
+(`gcloud logging write`, matching the filter above) plus looking in
+sofigenr@gmail.com by hand.
 
 The six `SIGNAL_*`/`ADMIN_PHONE` keys are gone from the `ALLBUYBOTCONF` secret
 as of version 16 (2026-09-11, added as a new version off v15 once PR #5's image
@@ -113,6 +113,13 @@ sent from - a rebuild means re-linking the Signal account from scratch
 old bucket data, since a deleted Cloud Run service revision does not preserve
 whatever in-memory/session state signal-cli needs beyond what it persisted to
 disk.
+
+`signal-local-bucket` itself survived the service deletion (deleting a Cloud
+Run service does not delete GCS buckets it mounted) and still holds that
+registration data - about 50 MiB, Standard storage class, europe-central2, so
+its ongoing cost is a fraction of a cent a month, not worth deleting for the
+money. Delete it only once the owner is sure Signal is not coming back, since
+that is also the point the old registration becomes unrecoverable.
 
 ## Scheduling (all of it lives in GCP, not in this repo)
 
