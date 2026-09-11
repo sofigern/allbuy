@@ -125,7 +125,7 @@ class PromAPIClient:
 
             # last_id is inclusive ("identifiers no higher than"), so step
             # past the oldest id of this page or the next call repeats it.
-            last_id = min(order.id for order in page) - 1
+            last_id = min(order.id for order in page)
         else:
             logger.warning(
                 "Stopped paging orders after %s pages; result may be partial",
