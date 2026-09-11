@@ -85,18 +85,34 @@ through notification channel `projects/all-buy-tools/notificationChannels/844433
 `gcloud logging write` and confirming it matched the policy filter.
 **Changing the string silently disables the alert** - the job keeps exiting
 cleanly and nobody is told the shop has stopped. There is no API to list fired
-incidents for a policy; the only way to re-verify delivery is a test log write
-plus checking the inbox by hand.
+incidents for a policy, and the notification channel itself carries no
+verification status either way; the only way to re-verify delivery is a test
+log write (`gcloud logging write`, matching the filter above) plus checking
+sofigenr@gmail.com by hand. As of 2026-09-11 the filter match was verified live
+but actual email delivery was not - the owner chose to accept that risk rather
+than block on it, so treat the alert as unproven until someone has actually
+seen one land in that inbox.
 
 The six `SIGNAL_*`/`ADMIN_PHONE` keys are gone from the `ALLBUYBOTCONF` secret
 as of version 16 (2026-09-11, added as a new version off v15 once PR #5's image
 had already run cleanly once); it now holds only `COOKIES`, `PROM_TOKEN`,
 `REPORT_EMAIL_TO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
-`SMTP_FROM`. The `signal-cli-rest-api` Cloud Run service (europe-central2) is
-the last piece: nothing calls it any more, and it is scheduled for deletion
-once the alert above is confirmed to actually deliver email - not just match
-the log filter - since that alert is the only replacement for what Signal used
-to notify.
+`SMTP_FROM`. The `signal-cli-rest-api` Cloud Run service and its
+`signal-cli-rest-api-*` revisions are deleted (2026-09-11, europe-central2);
+nothing in this repo calls it any more.
+
+If Signal is ever wanted back, standing the service up again is not just a
+redeploy: it was `bbernhard/signal-cli-rest-api:latest`, 1 CPU / 1Gi, `MODE=native`,
+`AUTO_RECEIVE_SCHEDULE=0 * * * *`, `maxScale=1`, running as
+`all-buy-service-account@all-buy-tools.iam.gserviceaccount.com`, with its
+`/home/.local/share/signal-cli` state on a GCS FUSE mount backed by the
+`signal-local-bucket` bucket (still present, not deleted with the service).
+That bucket held the linked-device registration for the phone number Signal
+sent from - a rebuild means re-linking the Signal account from scratch
+(scanning a QR code again), not just redeploying the same image against the
+old bucket data, since a deleted Cloud Run service revision does not preserve
+whatever in-memory/session state signal-cli needs beyond what it persisted to
+disk.
 
 ## Scheduling (all of it lives in GCP, not in this repo)
 
