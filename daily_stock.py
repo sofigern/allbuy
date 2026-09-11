@@ -208,6 +208,25 @@ async def collect_rows(prom_client, stock_manager, start, end):
     return build_report(selected, stock_manager.get_products())
 
 
+def deliver_report(stock_manager, sender, title, header, rows, to, subject, body, attachment):
+    """Write the worksheet tab, then send the report email regardless.
+
+    The worksheet write is best-effort: on failure it is logged, not
+    raised, so a broken sheet write (a rerun hitting a duplicate title, a
+    Sheets outage) does not also swallow the email - the run would
+    otherwise fail before the email is even built, leaving the owner with
+    neither a tab nor a mail and no idea why.
+    """
+    try:
+        stock_manager.write_report(title, header, rows)
+    except Exception:
+        logger.exception(
+            "Failed to write report worksheet %r; sending the email anyway", title
+        )
+
+    sender.send(sender.build(to, subject, body, attachment=attachment))
+
+
 async def main(args):
     start, end = daily_window(args.now or now_kyiv())
     logger.info("Window %s -> %s", start.isoformat(), end.isoformat())
@@ -236,12 +255,17 @@ async def main(args):
         print(body)
         return
 
-    stock_manager.create_report(title, HEADER, [row.as_row() for row in rows])
-    sender = MailSender.from_env()
-    message = sender.build(
-        args.to, subject, body, attachment=(attachment_name, build_workbook(rows))
+    deliver_report(
+        stock_manager,
+        MailSender.from_env(),
+        title,
+        HEADER,
+        [row.as_row() for row in rows],
+        args.to,
+        subject,
+        body,
+        (attachment_name, build_workbook(rows)),
     )
-    sender.send(message)
 
 
 if __name__ == "__main__":

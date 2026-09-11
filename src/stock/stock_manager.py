@@ -57,6 +57,26 @@ class StockManager:
         if rows:
             worksheet.append_rows(rows)
 
+    def write_report(
+        self,
+        title: str,
+        header: list[str],
+        rows: list[list],
+        index: int = 1,
+    ) -> None:
+        """Create the ``title`` tab, or replace it if one already exists.
+
+        A daily job names its tab after the report window, so a rerun (or a
+        scheduler retry) reuses the exact same title; ``create_report``'s
+        ``add_worksheet`` rejects a duplicate outright, which must not turn
+        into a silent no-op for the whole run.
+        """
+        titles = {worksheet.title for worksheet in self.spreadsheet.worksheets()}
+        if title in titles:
+            self.replace_report(title, header, rows)
+        else:
+            self.create_report(title, header, rows, index=index)
+
     @classmethod
     def parse_rows(cls, data: list[list[str]]) -> list[Product]:
         if not data:

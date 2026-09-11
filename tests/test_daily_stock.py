@@ -11,6 +11,7 @@ from daily_stock import (
     UNKNOWN,
     build_report,
     build_workbook,
+    deliver_report,
     orders_in_window,
     render_email,
 )
@@ -241,3 +242,60 @@ def test_float_quantities_do_not_render_as_decimals():
         stock_products=[stock("HT-6001", 5)],
     )
     assert row.as_row()[2] == "2"
+
+
+# --- delivering the report --------------------------------------------------
+
+class FakeStockManager:
+    def __init__(self, error=None):
+        self.error = error
+        self.written = None
+
+    def write_report(self, title, header, rows):
+        if self.error:
+            raise self.error
+        self.written = (title, header, rows)
+
+
+class FakeSender:
+    def __init__(self):
+        self.sent = None
+
+    def build(self, to, subject, body, attachment=None):
+        return {"to": to, "subject": subject, "body": body, "attachment": attachment}
+
+    def send(self, message):
+        self.sent = message
+
+
+def test_email_still_sends_when_the_worksheet_write_fails():
+    # The bug this guards: a same-day rerun reuses the window-end title,
+    # add_worksheet rejects the duplicate, and that failure happened before
+    # the email was built - a rerun delivered neither a tab nor a mail.
+    stock_manager = FakeStockManager(error=RuntimeError("duplicate title"))
+    sender = FakeSender()
+
+    deliver_report(
+        stock_manager, sender, "2026-09-11", HEADER, [["SKU-1", "n", "1"]],
+        "owner@example.com", "subject", "body", ("report.xlsx", b"bytes"),
+    )
+
+    assert sender.sent == {
+        "to": "owner@example.com",
+        "subject": "subject",
+        "body": "body",
+        "attachment": ("report.xlsx", b"bytes"),
+    }
+
+
+def test_worksheet_write_is_attempted_before_the_email_on_the_happy_path():
+    stock_manager = FakeStockManager()
+    sender = FakeSender()
+
+    deliver_report(
+        stock_manager, sender, "2026-09-11", HEADER, [["SKU-1", "n", "1"]],
+        "owner@example.com", "subject", "body", None,
+    )
+
+    assert stock_manager.written == ("2026-09-11", HEADER, [["SKU-1", "n", "1"]])
+    assert sender.sent is not None
