@@ -66,6 +66,17 @@ def is_cell(val) -> bool:
     return val is None or isinstance(val, CELL_TYPES)
 
 
+def cell(order: FlatDict, header: str):
+    """The cell ``order`` contributes under ``header``.
+
+    A header contributed by an order that left a field empty can name a branch
+    in an order that filled it, so a column surviving the scan below can still
+    offer a composite value here.
+    """
+    val = order_value(order, header)
+    return val if is_cell(val) else None
+
+
 def write_orders(client: gspread.client.Client, name: str, orders: dict):
     sheet = client.open("AllBuy Storage").worksheet(name)
 
@@ -94,7 +105,7 @@ def write_orders(client: gspread.client.Client, name: str, orders: dict):
 
     for order in orders.values():
         if order:
-            res.append([order_value(order, header) for header in headers])
+            res.append([cell(order, header) for header in headers])
 
     sheet.clear()
     sheet.append_row(headers)
