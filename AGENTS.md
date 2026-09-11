@@ -76,9 +76,47 @@ processing orders, and the only thing that says so is
 
     logger.error("COOKIES_EXPIRED: ...")
 
-in `__main__.py`. A Cloud Logging alerting policy matches that `COOKIES_EXPIRED`
-prefix and emails the owner. **Changing the string silently disables the alert**
-- the job keeps exiting cleanly and nobody is told the shop has stopped.
+in `__main__.py`. A Cloud Logging alerting policy in GCP project `all-buy-tools`
+(`projects/all-buy-tools/alertPolicies/15861306608002817826`, condition filters
+on `resource.type="cloud_run_job" AND resource.labels.job_name="shop-orders-refresh"
+AND textPayload:"COOKIES_EXPIRED"`) matches that prefix and emails the owner
+through notification channel `projects/all-buy-tools/notificationChannels/8444333370555292492`
+(sofigenr@gmail.com). Verified live by writing a matching test log entry with
+`gcloud logging write` and confirming it matched the policy filter.
+**Changing the string silently disables the alert** - the job keeps exiting
+cleanly and nobody is told the shop has stopped. The notification channel is
+`verificationStatus: VERIFIED` as of 2026-09-11 (the owner completed GCP's
+email verification code flow), and a test log entry written after that
+verification matched the policy filter, confirming the log-match -> channel
+wiring end to end. There is still no API to list fired incidents for a policy;
+the only way to re-check that an email actually lands is a test log write
+(`gcloud logging write`, matching the filter above) plus looking in
+sofigenr@gmail.com by hand.
+
+The six `SIGNAL_*`/`ADMIN_PHONE` keys are gone from the `ALLBUYBOTCONF` secret
+as of version 16 (2026-09-11, added as a new version off v15 once PR #5's image
+had already run cleanly once); it now holds only `COOKIES`, `PROM_TOKEN`,
+`REPORT_EMAIL_TO`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
+`SMTP_FROM`. The `signal-cli-rest-api` Cloud Run service and its
+`signal-cli-rest-api-*` revisions are deleted (2026-09-11, europe-central2);
+nothing in this repo calls it any more.
+
+If Signal is ever wanted back, standing the service up again is not a redeploy,
+it is a from-scratch re-link. It was `bbernhard/signal-cli-rest-api:latest`,
+1 CPU / 1Gi, `MODE=native`, `AUTO_RECEIVE_SCHEDULE=0 * * * *`, `maxScale=1`,
+running as `all-buy-service-account@all-buy-tools.iam.gserviceaccount.com`,
+with its `/home/.local/share/signal-cli` state on a GCS FUSE mount backed by
+the `signal-local-bucket` bucket. That bucket - and with it the linked-device
+registration for the phone number Signal sent from, plus its chat history,
+attachments, avatars, and sticker packs - was deleted on 2026-09-11 (owner's
+call, "Локал бакет нахер."): 202 objects, ~50 MiB, in four prefixes -
+`attachments/` (94 media files), `avatars/` (12 contact/group/profile images),
+`data/` (signal-cli's own account state: `accounts.json` plus two linked
+accounts' `account.db`, one with a `msg-cache`), `stickers/` (3 packs). Nothing
+else referenced the bucket (checked: no Cloud Run service or job volume mount,
+no code path) before it went. A future Signal rebuild means linking a fresh
+device from zero (scanning a QR code again) - there is no bucket left to
+redeploy against.
 
 ## Scheduling (all of it lives in GCP, not in this repo)
 
