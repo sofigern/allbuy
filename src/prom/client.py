@@ -73,37 +73,79 @@ class PromAPIClient:
         ) as resp:
             return await resp.json()
 
+    PAGE_SIZE = 100
+
+    #: Guards the paging loop against an endpoint that stops narrowing.
+    MAX_PAGES = 50
+
     async def get_orders(
         self,
         status: OrderStatus | None = None,
         date_to: str | None = None,
+        date_from: str | None = None,
+        paginate: bool = False,
     ) -> list[Order]:
-        params = {"limit": 100}
+        """Fetch orders, newest first.
 
-        if date_to:
-            params["date_to"] = date_to
+        ``paginate`` walks the whole selection with ``last_id`` instead of
+        returning only the newest ``PAGE_SIZE``. The single-page default
+        keeps the existing bot's behaviour unchanged.
+        """
+        orders = []
+        last_id = None
 
-        if status:
-            params["status"] = status.name
+        for _ in range(self.MAX_PAGES if paginate else 1):
+            params = {"limit": self.PAGE_SIZE}
 
-        logger.info("Getting orders with params: %s", params)
+            if date_to:
+                params["date_to"] = date_to
 
-        async with self.client.get("orders/list", params=params) as resp:
-            response_json = await resp.json()
+            if date_from:
+                params["date_from"] = date_from
 
-        return [
-            dacite.from_dict(
-                Order, order_data,
-                config=dacite.Config(
-                    type_hooks={
-                        OrderStatus: lambda s: OrderStatuses.get(s).value,
-                        PaymentStatus: lambda s:
-                            PaymentStatuses.get(s, PaymentStatuses.UNDEFINED).value,
-                    }
-                )
+            if status:
+                params["status"] = status.name
+
+            if last_id is not None:
+                params["last_id"] = last_id
+
+            logger.info("Getting orders with params: %s", params)
+
+            async with self.client.get("orders/list", params=params) as resp:
+                response_json = await resp.json()
+
+            page = [
+                self._parse_order(order_data)
+                for order_data in response_json.get("orders", [])
+            ]
+            orders += page
+
+            if not paginate or len(page) < self.PAGE_SIZE:
+                break
+
+            # last_id is inclusive ("identifiers no higher than"), so step
+            # past the oldest id of this page or the next call repeats it.
+            last_id = min(order.id for order in page) - 1
+        else:
+            logger.warning(
+                "Stopped paging orders after %s pages; result may be partial",
+                self.MAX_PAGES,
             )
-            for order_data in response_json.get("orders", [])
-        ]
+
+        return orders
+
+    @staticmethod
+    def _parse_order(order_data: dict) -> Order:
+        return dacite.from_dict(
+            Order, order_data,
+            config=dacite.Config(
+                type_hooks={
+                    OrderStatus: lambda s: OrderStatuses.get(s).value,
+                    PaymentStatus: lambda s:
+                        PaymentStatuses.get(s, PaymentStatuses.UNDEFINED).value,
+                }
+            )
+        )
 
     async def set_order_status(
         self,
