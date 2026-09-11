@@ -48,13 +48,36 @@ def read_orders(client: gspread.client.Client, name: str) -> dict:
     return result
 
 
+#: What a single spreadsheet cell can hold. A nested branch or a list - an
+#: order's product lines, for instance - has no single-cell form.
+CELL_TYPES = (str, int, float, bool)
+
+
+def order_value(order: FlatDict, header: str):
+    """Leaf value of ``header``, or ``None`` when this order has no such leaf."""
+    try:
+        return order.get(header)
+    except TypeError:
+        return None
+
+
+def is_cell(val) -> bool:
+    """Whether ``val`` can be written into one spreadsheet cell."""
+    return val is None or isinstance(val, CELL_TYPES)
+
+
 def write_orders(client: gspread.client.Client, name: str, orders: dict):
     sheet = client.open("AllBuy Storage").worksheet(name)
 
-    headers = set()
+    # A column exists only where every order offers a cell-shaped value, so a
+    # composite field added to Order cannot make the whole write fail.
+    headers, composite = set(), set()
     for order in orders.values():
-        headers.update(order.keys())
-    headers = ["id"] + sorted([h for h in headers if h != "id"])
+        for header in order.keys():
+            headers.add(header)
+            if not is_cell(order_value(order, header)):
+                composite.add(header)
+    headers = ["id"] + sorted(headers - composite - {"id"})
 
     # for h in headers:
     #     is_empty_field = True
@@ -71,18 +94,7 @@ def write_orders(client: gspread.client.Client, name: str, orders: dict):
 
     for order in orders.values():
         if order:
-            row = []
-            for h in headers:
-                try:
-                    val = order.get(h)
-                except TypeError:
-                    val = None
-                else:
-                    if isinstance(val, FlatDict):
-                        val = None
-                finally:
-                    row.append(val)
-            res.append(row)
+            res.append([order_value(order, header) for header in headers])
 
     sheet.clear()
     sheet.append_row(headers)
