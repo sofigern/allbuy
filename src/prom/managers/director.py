@@ -14,19 +14,16 @@ from src.prom.managers.nova_poshta import NovaPoshtaManager
 from src.prom.managers.pickup import PickupManager
 from src.prom.managers.rozetka import RozetkaManager
 from src.prom.managers.ukr_poshta import UkrPoshtaManager
-from src.signal.bot import SignalBot
 
 
 class Director:
     def __init__(
         self,
         api_client: PromAPIClient,
-        messenger: SignalBot | None = None,
         cookies: str | None = None,
     ) -> None:
         self.api_client = api_client
         self.cookies = cookies
-        self.messenger = messenger
         self.scrapers = {}
         self.managers = {}
 
@@ -37,40 +34,34 @@ class Director:
             if order.delivery_option == DeliveryProviders.PICKUP.value:
                 manager = PickupManager(
                     api_client=self.api_client,
-                    messenger=self.messenger,
                 )
             elif order.delivery_option == DeliveryProviders.NOVA_POSHTA.value:
                 scraper_client = NovaPoshtaScraperClient(cookies=self.cookies)
                 manager = NovaPoshtaManager(
                     api_client=self.api_client,
                     scrape_client=scraper_client,
-                    messenger=self.messenger,
                 )
             elif order.delivery_option == DeliveryProviders.UKR_POSHTA.value:
                 scraper_client = UkrPoshtaScraperClient(cookies=self.cookies)
                 manager = UkrPoshtaManager(
                     api_client=self.api_client,
                     scrape_client=scraper_client,
-                    messenger=self.messenger,
                 )
             elif order.delivery_option == DeliveryProviders.ROZETKA.value:
                 scraper_client = RozetkaScraperClient(cookies=self.cookies)
                 manager = RozetkaManager(
                     api_client=self.api_client,
                     scrape_client=scraper_client,
-                    messenger=self.messenger,
                 )
             elif order.delivery_option == DeliveryProviders.MEEST.value:
                 scraper_client = MeestScraperClient(cookies=self.cookies)
                 manager = MeestManager(
                     api_client=self.api_client,
                     scrape_client=scraper_client,
-                    messenger=self.messenger,
                 )
             else:
                 manager = DummyManager(
                     api_client=self.api_client,
-                    messenger=self.messenger,
                 )
 
             self.managers[order.delivery_option] = manager

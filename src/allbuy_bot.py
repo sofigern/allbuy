@@ -11,7 +11,6 @@ from src.models.order_status import OrderStatuses
 from src.prom.client import PromAPIClient
 from src.prom.exceptions import GeneratingDeclarationException, NotAllowedWarehouseException
 from src.prom.managers.director import Director, DummyManager
-from src.signal.bot import SignalBot
 
 
 logger = logging.getLogger(__name__)
@@ -22,25 +21,20 @@ class AllBuyBot:
     def __init__(
         self,
         client: PromAPIClient,
-        messenger: SignalBot | None = None,
         cookies: str | None = None,
         paid_orders: dict | None = None,
         pending_orders: dict | None = None,
-        admin_phone: str | None = None,
     ):
         self.client = client
         self.orders = []
         self.processed_orders = set()
-        self.messenger = messenger
         self.director = Director(
             api_client=self.client,
-            messenger=self.messenger,
             cookies=cookies,
         )
         self.paid_orders = paid_orders or dict()
         self.pending_orders = pending_orders or dict()
         self.retry_orders = set()
-        self.admin_phone = admin_phone
 
     async def refresh_shop(self, orders: list[str]):
         logger.info("Refreshing shop data")
@@ -132,18 +126,12 @@ class AllBuyBot:
             e.IncompletePaymentError,
             e.ReadyForDeliveryError,
         ) as exc:
-            logger.info("Sending message to the chat:\n%s", exc)
-            if self.messenger and initial:
-                await self.messenger.send(str(exc))
+            logger.warning("Order %s: %s", order.id, exc)
         except e.DeliveryProviderError as exc:
-            logger.info("Sending message to the chat:\n%s", exc)
-            if self.messenger and initial:
-                await self.messenger.send(str(exc), notify=[self.admin_phone])
+            logger.warning("Order %s: %s", order.id, exc)
         except e.GenerationDeclarationError as exc:
             self.retry_orders.add(str(order.id))
-            logger.info("Sending message to the chat:\n%s", exc)
-            if self.messenger and initial:
-                await self.messenger.send(str(exc))
+            logger.warning("Order %s: %s", order.id, exc)
         except e.ModifiedDateIsTooOldError as exc:
             logger.info("Ignoring too old orders:\n%s", exc)
         except e.UnknownFinalizationError as exc:

@@ -2,7 +2,6 @@ from src.models.order import Order
 
 from src.prom.client import PromAPIClient
 from src.prom.remote.base import BaseScraperClient
-from src.signal.bot import SignalBot
 
 
 class IManager:
@@ -11,7 +10,6 @@ class IManager:
         self,
         api_client: PromAPIClient,
         scrape_client: BaseScraperClient | None = None,
-        messenger: SignalBot | None = None,
     ):
         raise NotImplementedError
 

@@ -55,6 +55,21 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `quantity` on an order line is a **float** (`1.0`, confirmed on a live call), so it is rendered
   through `format_quantity`; printing it raw puts "1.0" in the report.
 
+## Alerting
+
+The shop bot has no messenger. Signal - the `signal-cli-rest-api` Cloud Run
+service and the `src/signal` package - was removed once it stopped being used;
+what it used to send now goes to the log.
+
+One of those lines is load-bearing. When prom's cookies go stale the bot stops
+processing orders, and the only thing that says so is
+
+    logger.error("COOKIES_EXPIRED: ...")
+
+in `__main__.py`. A Cloud Logging alerting policy matches that `COOKIES_EXPIRED`
+prefix and emails the owner. **Changing the string silently disables the alert**
+- the job keeps exiting cleanly and nobody is told the shop has stopped.
+
 ## Scheduling (all of it lives in GCP, not in this repo)
 
 `cloudbuild.yaml` only builds and pushes `gcr.io/all-buy-tools/my-image:latest`. What runs, when, is
