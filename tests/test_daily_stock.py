@@ -1,12 +1,16 @@
 import datetime
+import io
 
+import openpyxl
 import pytest
 
 from daily_stock import (
+    HEADER,
     IN_STOCK,
     NOT_ENOUGH,
     UNKNOWN,
     build_report,
+    build_workbook,
     orders_in_window,
     render_email,
 )
@@ -168,7 +172,9 @@ def test_lines_without_sku_are_skipped():
 
 # --- the email -------------------------------------------------------------
 
-def test_email_reports_counts_and_lists_every_row():
+def test_email_body_leads_with_window_and_counts():
+    # The body has to stand on its own: a phone preview shows it, not the
+    # attachment. The row-by-row table now travels only in the .xlsx.
     start, end = daily_window(kyiv("2026-09-11T08:50:00"))
     rows = build_report(
         orders=[FakeOrder(1, "2026-09-10T10:00:00+03:00", [
@@ -180,8 +186,8 @@ def test_email_reports_counts_and_lists_every_row():
 
     assert "11.09.2026" in subject
     assert "2 позицій" in subject and "1 під питанням" in subject
-    assert "SHORT-1" in body and "OK-1" in body
     assert "10.09.2026 08:50 — 11.09.2026 08:50" in body
+    assert "Позицій: 2" in body and "Потребують уваги: 1" in body
 
 
 def test_empty_day_says_so_rather_than_rendering_a_bare_header():
@@ -189,6 +195,43 @@ def test_empty_day_says_so_rather_than_rendering_a_bare_header():
     subject, body = render_email([], start, end)
     assert "0 позицій" in subject
     assert "За цей період замовлень не було." in body
+
+
+# --- the xlsx attachment ----------------------------------------------------
+
+def read_sheet(xlsx_bytes: bytes) -> list[list]:
+    sheet = openpyxl.load_workbook(io.BytesIO(xlsx_bytes)).active
+    return [[cell.value for cell in row] for row in sheet.iter_rows()]
+
+
+def test_workbook_rows_match_the_report():
+    rows = build_report(
+        orders=[FakeOrder(1, "2026-09-10T10:00:00+03:00", [
+            line("SHORT-1", 5), line("OK-1", 1),
+        ])],
+        stock_products=[stock("SHORT-1", 1), stock("OK-1", 9)],
+    )
+    values = read_sheet(build_workbook(rows))
+    assert values[0] == HEADER
+    assert values[1:] == [row.as_row() for row in rows]
+
+
+def test_workbook_keeps_the_three_states_distinct():
+    rows = build_report(
+        orders=[
+            FakeOrder(1, "2026-09-10T10:00:00+03:00", [line("SHORT-1", 5)]),
+            FakeOrder(2, "2026-09-10T10:00:00+03:00", [line("ABSENT-1", 1)]),
+            FakeOrder(3, "2026-09-10T10:00:00+03:00", [line("OK-1", 1)]),
+        ],
+        stock_products=[stock("SHORT-1", 2), stock("OK-1", 9)],
+    )
+    values = read_sheet(build_workbook(rows))
+    statuses = {row[0]: row[4] for row in values[1:]}
+    assert statuses == {"SHORT-1": NOT_ENOUGH, "ABSENT-1": UNKNOWN, "OK-1": IN_STOCK}
+
+
+def test_workbook_on_an_empty_day_is_just_the_header():
+    assert read_sheet(build_workbook([])) == [HEADER]
 
 
 def test_float_quantities_do_not_render_as_decimals():

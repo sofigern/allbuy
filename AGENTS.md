@@ -42,8 +42,18 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   100-order page covers it today, which is why paging exists rather than a larger limit.
 - `EXCLUDED_ORDER_STATUSES` is empty: the owner asked for *all* orders in the window, cancellations
   included. Add `"cancelled"` there to change that; nothing else needs touching.
-- **Both outputs are off unless `--apply` is passed.** Without it the run prints the worksheet title and
-  the exact email body. The scheduled invocation must pass `--apply`.
+- **Both outputs are off unless `--apply` is passed.** Without it the run prints the worksheet title,
+  the attachment filename, and the exact email body. The scheduled invocation must pass `--apply`.
+- The email carries the report as an **.xlsx attachment** (`build_workbook`, `openpyxl`), not as text in
+  the body — the owner reads it as a purchase proposal he wants to sort/filter, not read in a mail client.
+  `openpyxl` was picked over `xlsxwriter` because it can also read (useful if a future job ever needs to
+  re-parse a sent report) and is the more widely maintained of the two; either would have worked here.
+  The body still stands on its own (window, SKU count, short count) because a phone preview shows the
+  body, not the attachment. The attachment reuses the same rows/header as the worksheet tab
+  (`row.as_row()`, untruncated names) so the two never drift apart.
+  The filename is the worksheet `title` (already `YYYY-MM-DD HH-MM …`, so a year of them sorts correctly)
+  plus `.xlsx`. `MailSender.build` takes an optional `attachment: tuple[filename, bytes]` — extended in
+  place rather than adding a second sender.
 - SMTP settings come from the same `ALLBUYBOTCONF` secret as everything else:
   `SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASSWORD`, optional `SMTP_FROM`,
   and `REPORT_EMAIL_TO` (defaults to the shop's Prom-registered address). There is deliberately no
@@ -94,3 +104,10 @@ To change a job's time, edit only its own trigger — the schedules are independ
 gcloud scheduler jobs update http <trigger-name> \
   --location=europe-central2 --schedule="50 8 * * *" --time-zone="Europe/Kiev"
 ```
+
+## Maintaining this file
+
+Keep this file for knowledge useful to almost every future agent session in this project.
+Do not repeat what the codebase already shows; point to the authoritative file or command instead.
+Prefer rewriting or pruning existing entries over appending new ones.
+When updating this file, preserve this bar for all agents and keep entries concise.
