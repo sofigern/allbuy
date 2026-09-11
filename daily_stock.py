@@ -242,16 +242,13 @@ async def main(args):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    if not os.path.exists("local.env"):
-        secret_client = secretmanager_v1.SecretManagerServiceClient()
-        _, project_id = google.auth.default()
-        response = secret_client.access_secret_version(
-            name=f"projects/{project_id}/secrets/ALLBUYBOTCONF/versions/latest"
-        )
-        payload = response.payload.data.decode("UTF-8")
-        load_dotenv(stream=io.StringIO(payload))
-    else:
-        load_dotenv("local.env", override=True)
+    secret_client = secretmanager_v1.SecretManagerServiceClient()
+    _, project_id = google.auth.default()
+    response = secret_client.access_secret_version(
+        name=f"projects/{project_id}/secrets/ALLBUYBOTCONF/versions/latest"
+    )
+    payload = response.payload.data.decode("UTF-8")
+    load_dotenv(stream=io.StringIO(payload))
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
