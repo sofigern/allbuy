@@ -101,25 +101,22 @@ had already run cleanly once); it now holds only `COOKIES`, `PROM_TOKEN`,
 `signal-cli-rest-api-*` revisions are deleted (2026-09-11, europe-central2);
 nothing in this repo calls it any more.
 
-If Signal is ever wanted back, standing the service up again is not just a
-redeploy: it was `bbernhard/signal-cli-rest-api:latest`, 1 CPU / 1Gi, `MODE=native`,
-`AUTO_RECEIVE_SCHEDULE=0 * * * *`, `maxScale=1`, running as
-`all-buy-service-account@all-buy-tools.iam.gserviceaccount.com`, with its
-`/home/.local/share/signal-cli` state on a GCS FUSE mount backed by the
-`signal-local-bucket` bucket (still present, not deleted with the service).
-That bucket held the linked-device registration for the phone number Signal
-sent from - a rebuild means re-linking the Signal account from scratch
-(scanning a QR code again), not just redeploying the same image against the
-old bucket data, since a deleted Cloud Run service revision does not preserve
-whatever in-memory/session state signal-cli needs beyond what it persisted to
-disk.
-
-`signal-local-bucket` itself survived the service deletion (deleting a Cloud
-Run service does not delete GCS buckets it mounted) and still holds that
-registration data - about 50 MiB, Standard storage class, europe-central2, so
-its ongoing cost is a fraction of a cent a month, not worth deleting for the
-money. Delete it only once the owner is sure Signal is not coming back, since
-that is also the point the old registration becomes unrecoverable.
+If Signal is ever wanted back, standing the service up again is not a redeploy,
+it is a from-scratch re-link. It was `bbernhard/signal-cli-rest-api:latest`,
+1 CPU / 1Gi, `MODE=native`, `AUTO_RECEIVE_SCHEDULE=0 * * * *`, `maxScale=1`,
+running as `all-buy-service-account@all-buy-tools.iam.gserviceaccount.com`,
+with its `/home/.local/share/signal-cli` state on a GCS FUSE mount backed by
+the `signal-local-bucket` bucket. That bucket - and with it the linked-device
+registration for the phone number Signal sent from, plus its chat history,
+attachments, avatars, and sticker packs - was deleted on 2026-09-11 (owner's
+call, "Локал бакет нахер."): 202 objects, ~50 MiB, in four prefixes -
+`attachments/` (94 media files), `avatars/` (12 contact/group/profile images),
+`data/` (signal-cli's own account state: `accounts.json` plus two linked
+accounts' `account.db`, one with a `msg-cache`), `stickers/` (3 packs). Nothing
+else referenced the bucket (checked: no Cloud Run service or job volume mount,
+no code path) before it went. A future Signal rebuild means linking a fresh
+device from zero (scanning a QR code again) - there is no bucket left to
+redeploy against.
 
 ## Scheduling (all of it lives in GCP, not in this repo)
 
