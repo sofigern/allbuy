@@ -8,7 +8,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 - Availability rule: a prom product is available iff its quantity on the owner's Google Sheet "Склад Intertool" / worksheet "Товари" is > 0 OR intertool's b2c XML stock feed marks it `available="true"`.
   The sheet is authoritative for items intertool has delisted from b2c (they show `available="false"` in the feed while the owner still holds stock).
-  The owner has NO intertool B2B dealer login; do not build a B2B-cabinet availability source.
+  A B2B dealer login to b2b.intertool.ua exists (Volodymyr's account; Mykola signed it in to the second connected Chrome, «Browser 2», on 2026-11-06); it was believed absent until then.
+  The cabinet's product page `productCart/<article>` shows Базова ціна, РРЦ and the dealer's discounted Ціна; its JSON API (`/b2b/hs/b2b/v1/...`) needs a session token.
+  It is not yet an availability source for this job; building one is a design change for Mykola to decide.
 - The sheet is hand-edited: SKU cells carry stray newlines/spaces (e.g. `"TC-7635\n\n"`; 342 of ~1040 rows at 2026-07-06).
   All SKU matching must go through `normalize_sku` (strip); unstripped matching once flipped in-stock products to "Немає в наявності".
 - "Товари" layout is header-named, not positional: `Артикул` (SKU), `Товар` (name), `Кількість` (quantity), `Ціна` (price); `StockManager.parse_rows` resolves columns by header and fails loudly if one is missing.
